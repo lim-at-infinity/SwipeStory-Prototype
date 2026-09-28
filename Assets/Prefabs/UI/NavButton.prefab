@@ -134,7 +134,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f85ffd3302a77bb4e9509629dec4a380, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NavButton
-  _target: 6
+  _target: 0
   _goBack: 0
 --- !u!1 &7921567692756869770
 GameObject:
