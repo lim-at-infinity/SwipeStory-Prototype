@@ -23,8 +23,15 @@ public class ScreenManager : MonoBehaviour
 
         foreach (ScreenBase screen in _screenRoot.GetComponentsInChildren<ScreenBase>(true))
         {
-            _screens[screen.Id] = screen;
             screen.gameObject.SetActive(false);
+
+            if (_screens.ContainsKey(screen.Id))
+            {
+                Debug.LogError("[ScreenManager] " + screen.name + " and " + _screens[screen.Id].name + " both use Id " + screen.Id);
+                continue;
+            }
+
+            _screens.Add(screen.Id, screen);
         }
     }
 
