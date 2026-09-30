@@ -52,3 +52,57 @@ hero.RestoreFullHp();   // new heroes start at full HP
 | `GetById` / `GetFallenById` | Lookups for living / fallen heroes |
 
 The party is not stored here: a party is chosen per adventure (see `Adventures.md`).
+
+## Script reference
+
+### HeroClass.cs
+
+Enum `HeroClass`: Warrior = 0, Mage = 1, Rogue = 2, Healer = 3. Picks a hero's stat profile and which weapons they can use. Saved as numbers, so only ever append new values.
+
+### HeroData.cs (plain class)
+
+| Member | What it does |
+| --- | --- |
+| `Id` | Unique GUID created with the hero. Never changes; other systems use it to refer to the hero. |
+| `Name`, `Class`, `IsPlayer` | Display name, class, and whether this is the player's own hero (one per run). |
+| `Level`, `Xp` | Progress. Level starts at 1; leveling up isn't built yet. |
+| `MaxHp`, `CurrentHp`, `Attack`, `Defense`, `Speed` | Base stats, without equipment or relationship bonuses. |
+| `Weapon`, `Hat` | The equipped item assets, or null when empty. |
+| `Traits` | Read-only list of the hero's traits. |
+| `HeroData(name, heroClass, isPlayer)` | Creates a hero with a new Id. Stats start at 0, so use `HeroFactory` to make a real one. |
+| `RestoreFullHp()` | Sets `CurrentHp` to `MaxHp`. Called for survivors when the party returns from an adventure. |
+| `GetEquipped(slot)` | Returns the item in the Weapon or Hat slot, or null. |
+| `SetEquipped(slot, item)` | Puts an item in a slot, or empties it when `item` is null. Throws if the item doesn't fit the slot; class locks are checked by `Inventory.UseOn`, not here. |
+| `AddTrait(trait)` | Adds a trait. Null is ignored; duplicates are currently allowed. |
+| `HasTrait(trait)` | True if the hero has that trait asset. |
+
+### HeroFactory.cs (static)
+
+| Member | What it does |
+| --- | --- |
+| `Create(config, rng, name, heroClass, level, isPlayer)` | Builds a complete hero: rolls each stat from the class's level 1 range, adds growth for every level above 1, and starts at full HP. Level is clamped to 1..MaxLevel; throws if `config` or `rng` is null. |
+
+### HeroGenerator.cs (manager)
+
+| Member | What it does |
+| --- | --- |
+| `Generate()` | Makes a random recruit (random class and name) at the player hero's current level. Used by Recruit. |
+| `CreatePlayer(heroClass, name)` | Makes the level 1 player hero. Called by `GameManager.NewGame`. |
+| Inspector `Seed` | 0 gives different recruits every run; any other number repeats the same sequence, useful for reproducing bugs. |
+| Inspector `Names` | The pool recruit names are picked from (repeats are possible). |
+
+### RosterManager.cs (manager)
+
+| Member | What it does |
+| --- | --- |
+| `Heroes` | Every living hero, player included. |
+| `PlayerHero` | The player's own hero. |
+| `FallenHeroes` | NPC heroes who died this run, oldest first. |
+| `Capacity`, `IsFull` | Roster limit from BalanceConfig (0 = unlimited), and whether it's been reached. |
+| `TryAddHero(hero)` | Adds a hero and fires `OnRosterChanged`. Returns false for null, a hero already in the roster, a full roster, or a second player hero. |
+| `RemoveHero(hero)` | Removes a hero for non-death reasons (e.g. dismissing). Ignored for the player hero. |
+| `MarkFallen(hero)` | NPC death: moves the hero from `Heroes` to `FallenHeroes` (their gear is lost) and fires `OnHeroFell` and `OnRosterChanged`. Ignored for the player hero, whose death ends the run instead. |
+| `GetById(id)`, `GetFallenById(id)` | Finds a living / fallen hero by Id, or returns null. |
+| `NotifyHeroUpdated(hero)` | Fires `OnHeroUpdated` so screens refresh. Call it after changing any hero field. |
+| `Clear()` (internal) | Empties the roster and fallen list. Only `GameManager.NewGame` calls it. |
+| Events | `OnRosterChanged`, `OnHeroUpdated`, `OnHeroFell`. |

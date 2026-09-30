@@ -150,3 +150,62 @@ else
 `context.History` keeps every AdventureResult of the run for Summary.
 
 Open for the battle side: HP carry-over between encounters, rewards on replays.
+
+## Script reference
+
+GameManager's adventure members (`IsUnlocked`, `IsCleared`, `CompleteAdventure`, `EndRun`) are in `Overview.md`.
+
+### AdventureData.cs (ScriptableObject)
+
+| Member | What it does |
+| --- | --- |
+| `Id`, `DisplayName`, `Description` | Identity and display. |
+| `Difficulty` | A 1 to 5 label. Nothing uses it yet. |
+| `Encounters` | The fights, in the order they're fought. |
+| `GoldReward`, `XpReward`, `UndoTokenReward`, `ItemRewards` | Base rewards for clearing the whole adventure. Gold and XP get scaled by the BalanceConfig multipliers when the AdventureResult is made. |
+| Inspector warnings | Missing Id, no encounters, or an encounter with no enemies. |
+
+### EncounterData.cs (plain class, edited inside AdventureData)
+
+| Member | What it does |
+| --- | --- |
+| `Name` | The fight's name, also shown as its label in the Inspector list. |
+| `Enemies` | The enemies fought together in this fight. |
+
+### EnemyData.cs (plain class, edited inside EncounterData)
+
+| Member | What it does |
+| --- | --- |
+| `Name`, `MaxHp`, `Attack`, `Defense`, `Speed` | The enemy's stats (MaxHp defaults to 10). Battle makes its own copy to track damage. |
+| `EnemyData(name, maxHp, attack, defense, speed)` | Makes an enemy from code, e.g. in tests. |
+
+### BattleResult.cs (plain class, can't change after creation)
+
+| Member | What it does |
+| --- | --- |
+| `Encounter`, `Won`, `Fallen` | Which fight this was, whether the party won it, and the NPC heroes who died in it. |
+| `BattleResult(encounter, won, fallen)` | Records one fight. `fallen` can be null for "nobody". |
+
+### AdventureResult.cs (plain class, can't change after creation)
+
+| Member | What it does |
+| --- | --- |
+| `Adventure`, `Party`, `Battles` | Which adventure, who went, and one BattleResult per fight fought. |
+| `GoldEarned`, `XpEarned`, `UndoTokensEarned`, `ItemsEarned` | The rewards, already scaled. Given once for the whole adventure. |
+| `Won` | Calculated: true only if every encounter was fought and won. |
+| `Fallen` | Calculated: everyone who fell in any of the battles. |
+| `AdventureResult(adventure, party, battles, goldEarned, xpEarned, undoTokensEarned, itemsEarned)` | Records the whole adventure. Lists are copied, so later changes elsewhere don't affect it. |
+
+### AdventureContext.cs (plain class, lives on ScreenManager)
+
+| Member | What it does |
+| --- | --- |
+| `Adventure`, `Party` | The adventure being played and the heroes sent. |
+| `Battles` | Fights finished so far in the current adventure. |
+| `CurrentEncounterIndex` | Which encounter is fought next (0 = first). |
+| `HasMoreEncounters` | True while there are encounters left. Battle decides whether to stop early after a loss. |
+| `LastResult`, `History` | The latest AdventureResult, and every AdventureResult this run (for Summary). |
+| `Begin(adventure, party)` | Starts an adventure: sets the adventure and party, clears `Battles` and `LastResult`. Called by Adventure Select. |
+| `RecordBattle(result)` | Adds one fight's result. Throws if called before `Begin`. |
+| `Finish(result)` | Stores the AdventureResult as `LastResult` and adds it to `History`. Called by Battle before showing Rewards. |
+| `Reset()` | Clears everything, including `History`. Call it on `GameManager.OnNewGame`. |

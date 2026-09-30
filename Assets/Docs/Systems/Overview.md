@@ -8,7 +8,10 @@ How the Core-Data pieces fit together. For exact signatures see `DataCheatSheet.
 | `Items.md` | ItemData, item types and class locks, Inventory |
 | `Relationships.md` | Affinity, tiers, dating, breakups, widows |
 | `Adventures.md` | Adventures, encounters, results, unlocks, how a run ends |
-| `ConfigAndTesting.md` | BalanceConfig, DebugSeed, EditMode tests |
+| `ConfigAndTesting.md` | BalanceConfig, IntRange, DebugSeed, EditMode tests |
+| `ScriptableObjects.md` | What SOs are, which of our scripts are SOs, rules for working with them |
+
+Each doc ends with a **Script reference**: every public member of its scripts with a short explanation. GameManager's is at the bottom of this file.
 
 ## Two kinds of data
 
@@ -48,3 +51,24 @@ Town > Adventure Select (party of up to 6, player hero always in)
      > EndDay > Recruit (night) > StartNextDay > Town ...
 Run won: boss (3rd adventure) cleared.  Run lost: player hero dies.
 ```
+
+## Script reference
+
+### GameManager.cs (manager)
+
+| Member | What it does |
+| --- | --- |
+| `Config` | The BalanceConfig asset, assigned in the Inspector. Every script reads tuning values through it. |
+| `Gold`, `UndoTokens` | The player's gold and undo tokens. |
+| `AdventuresCompleted` | Unlock progress: how many adventures in `Config.Adventures` have been cleared, in order (0 to 3). Replays don't raise it. |
+| `IsRunOver`, `RunWon` | Whether the run has ended, and if so whether it was won (boss cleared) or lost (player hero died). |
+| `NewGame()` | Starts a fresh run: resets gold, tokens and progress, clears the roster, inventory and relationships, and creates the player hero. Runs automatically on Play. |
+| `TrySpendGold(amount)` | Spends gold if there's enough and returns true; otherwise changes nothing and returns false. |
+| `AddGold(amount)` | Adds gold. Negative amounts are ignored with a warning (use `TrySpendGold`). |
+| `TryUseUndoToken()` | Uses one undo token if there is one; returns false otherwise. |
+| `AddUndoToken()` | Adds one undo token. |
+| `IsUnlocked(adventure)` | True if the adventure can be played: the first always, each later one once the one before is cleared. |
+| `IsCleared(adventure)` | True if the adventure has been beaten at least once. |
+| `CompleteAdventure(adventure)` | Call after a won adventure. Advances progress only on the first clear of the newest unlocked adventure; clearing the boss calls `EndRun(true)`. |
+| `EndRun(won)` | Ends the run once (later calls are ignored), sets `IsRunOver` and `RunWon`, and fires `OnRunEnded`. Battle calls it with false when the player hero dies. |
+| Events | `OnGoldChanged`, `OnUndoTokensChanged`, `OnAdventuresChanged`, `OnRunEnded`, `OnNewGame`. |
