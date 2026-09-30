@@ -2,7 +2,7 @@
 
 Sep 25, 2026 · @Brian Lim · Updated Sep 29, 2026 (day cycle, no Main Menu, shared UI pieces; Core-Data: player hero, ScriptableObject items and traits, relationships, no rarity)
 
-See also: `DevPractices.md` (how we work) and `DeferredSystems.md` (designed, not built yet).
+See also: `DevPractices.md` (how we work).
 
 ## Purpose and ground rules
 
@@ -39,7 +39,7 @@ Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Re
 | `Rewards` | 9 | Rewards | Battle | Recruit (via `EndDay`), or Summary if the run is over |
 | `Summary` | 10 | End-of-run summary | Rewards | Town (Restart, after `GameManager.NewGame`) |
 
-**ScreenId values are fixed numbers** because Unity saves them as ints in scenes and prefabs. Never reorder or renumber; only append new ones at the end. Planned screens (class pick, trait draw, Main Menu) get their values when they are added; see `DeferredSystems.md`.
+**ScreenId values are fixed numbers** because Unity saves them as ints in scenes and prefabs. Never reorder or renumber; only append new ones at the end. Planned screens (class pick, trait draw, Main Menu) get their values when they are added.
 
 **Back history:** showing `Town` or `Recruit` clears the Back history, so Back never leaves those screens.
 
@@ -106,7 +106,7 @@ Example: `OldSword.asset` has Type Sword, 1 star, small StatBonus.
 | `AffinityGainMultiplier` | float | 1 = normal. Charmer: 2 |
 | `DatingCapOverride` | int | 0 = use `BalanceConfig.DefaultDatingCap`. Multi-dating trait (name TBD): 3 |
 
-Effects are data only for now; nothing applies them yet (`DeferredSystems.md`).
+Effects are data only for now; nothing applies them yet.
 
 ### AdventureData (ScriptableObject, `Assets/Data/Adventures/`)
 
@@ -348,7 +348,7 @@ Details and reasons in `DevPractices.md`.
 - [x] ~~Roster capacity and party size~~ Party: up to 6 heroes sent on an adventure. Roster: every hero in the Adventurer Guild, up to 50
 - [x] ~~Does the player hero have to be in every party?~~ Yes, for now
 - [x] ~~Can a hero die or leave the roster after a lost battle?~~ NPC death is permanent; player death ends the run
-- [x] ~~Does love score ever go down?~~ Yes (breakups need it); what lowers it is still open, see `DeferredSystems.md`
+- [x] ~~Does love score ever go down?~~ Yes (breakups need it); what lowers it is still open
 - [x] ~~Can each hero be talked to once per round, or unlimited times?~~ One talk per day (talking is the day's activity)
 - [x] ~~How many swipe cards per visit to the Recruit screen, and does the deck refresh after each adventure?~~ 5 new cards every night, free
 - [x] ~~Is there a protagonist hero in the roster from day 1?~~ Yes, the player hero (`IsPlayer`); can't be removed or talked to

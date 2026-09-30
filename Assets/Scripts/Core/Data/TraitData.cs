@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // Trait definition drawn on level-up. Read-only at runtime.
-// Effects are data only for now; RelationshipSystem applies them later (see DeferredSystems.md)
+// Effects are data only for now; RelationshipSystem applies them later
 [CreateAssetMenu(menuName = "SwipeStory/Trait", fileName = "NewTrait")]
 public class TraitData : ScriptableObject
 {

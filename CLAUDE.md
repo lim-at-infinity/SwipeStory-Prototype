@@ -2,14 +2,16 @@
 
 Two-person Unity prototype for USC CSCI526 (repo `lim-at-infinity/SwipeStory-Prototype`, public). A town-management RPG: recruit heroes by swiping cards, build relationships with them, and send parties on auto-battle adventures. The run ends after 3 adventures.
 
+## Prototype demo focus
+
+The demo is one loop: **recruit heroes > go on an adventure > get loot**, three times. The 3rd adventure is the boss. Anything that doesn't serve this loop waits until after the prototype; content like items is hand-made placeholder assets for now.
+
 ## Read first
 
 | Doc | What it is |
 | --- | --- |
 | `Assets/Docs/DataCheatSheet.md` | Tech contract: every public class, field, method, event and enum. **Source of truth.** |
 | `Assets/Docs/DevPractices.md` | How we work: assets, enums, scenes, git, tests |
-| `Assets/Docs/DeferredSystems.md` | Systems that are designed but not built yet, with the decisions already made |
-
 If code and the contract disagree, ask before "fixing" either one.
 
 ## Stack

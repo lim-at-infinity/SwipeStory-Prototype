@@ -74,4 +74,3 @@ How we work on this project. The tech contract (`DataCheatSheet.md`) says *what*
 ## Docs
 
 - Changing the public API: update `DataCheatSheet.md` in the same PR.
-- Designing something that won't be built yet: add it to `DeferredSystems.md` with the decisions made so far.

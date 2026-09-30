@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 // The only place that changes HeroData.Affinity.
-// Not yet: trait effects (Charmer), dating, breakups, Ex debuffs. See DeferredSystems.md
+// Not yet: trait effects (Charmer), dating, breakups, Ex debuffs
 [DefaultExecutionOrder(-200)]
 public class RelationshipSystem : MonoBehaviour
 {
