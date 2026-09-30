@@ -2,7 +2,7 @@
 
 Sep 25, 2026 · @Brian Lim · Updated Sep 29, 2026 (day cycle, no Main Menu, shared UI pieces; Core-Data: player hero, ScriptableObject items and traits, relationships, no rarity)
 
-See also: `DevPractices.md` (how we work).
+See also: `DevPractices.md` (how we work) and `Systems/` (how each system works, start with `Systems/Overview.md`).
 
 ## Purpose and ground rules
 
@@ -62,7 +62,7 @@ All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeSt
 | `Level` | int | 1 to `BalanceConfig.MaxLevel` (10). Recruits arrive at the player hero's level |
 | `Xp` | int | 0 up to `BalanceConfig.GetXpToNextLevel(Level)` |
 | `MaxHp` | int | Base stat |
-| `CurrentHp` | int | 0 to MaxHp; reset to MaxHp before each battle |
+| `CurrentHp` | int | 0 to MaxHp. Survivors are restored to MaxHp when the party returns from an adventure |
 | `Attack` | int | Base stat |
 | `Defense` | int | Base stat |
 | `Speed` | int | Decides battle turn order |
@@ -71,7 +71,7 @@ All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeSt
 | `Traits` | IReadOnlyList\<TraitData\> | Added with `AddTrait` |
 
 - `HeroData(string name, HeroClass heroClass, bool isPlayer = false)`
-- `void RestoreFullHp()`
+- `void RestoreFullHp()`: Rewards calls it on every surviving party member when the party returns
 - `ItemData GetEquipped(EquipSlot slot)`, `void SetEquipped(EquipSlot slot, ItemData item)`: throws if the item doesn't fit that slot. Does not check class locks; use `Inventory.UseOn` for that
 - `void AddTrait(TraitData trait)`, `bool HasTrait(TraitData trait)`
 
@@ -333,7 +333,7 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | Shop | Gold, `Config.ShopItems` | `TrySpendGold`, `Inventory.Add` | OnGoldChanged, OnInventoryChanged | Items in inventory |
 | Adventure Select | `Config.Adventures`, `IsUnlocked`, `IsCleared`, `RosterManager.Heroes`, `Config.PartySize` (player hero always included) | `AdventureContext.Begin`, `ScreenManager.Show(Battle)` | OnRosterChanged, OnAdventuresChanged | Party + AdventureData in AdventureContext |
 | Battle | `AdventureContext` (Party, Adventure and its Encounters), `RelationshipSystem.GetStatBonus`, equipped items | `AdventureContext.RecordBattle` (each fight), `AdventureContext.Finish`, `GameManager.EndRun(false)` if the player hero dies | none | BattleResult per fight, AdventureResult |
-| Rewards | `AdventureContext.LastResult` (an AdventureResult) | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `MarkFallen` (each hero in `Fallen`), `CompleteAdventure(adventure)` if won, then `Show(Summary)` if `IsRunOver`, else `DayCycle.EndDay` | none | Updated heroes, gold, items |
+| Rewards | `AdventureContext.LastResult` (an AdventureResult) | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `MarkFallen` (each hero in `Fallen`), `RestoreFullHp` (each survivor), `CompleteAdventure(adventure)` if won, then `Show(Summary)` if `IsRunOver`, else `DayCycle.EndDay` | none | Updated heroes, gold, items |
 | Summary | Roster, `FallenHeroes`, Gold, `RunWon`, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
 
 **Hand-offs between screens:** Roster to Inspection, and Town to Dialogue, pass the hero through `ScreenManager.SelectedHero`. Adventure Select to Battle to Rewards pass the party, adventure and result through `ScreenManager.Adventure` (an `AdventureContext`).

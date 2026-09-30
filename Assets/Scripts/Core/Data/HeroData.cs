@@ -42,7 +42,8 @@ public class HeroData
         IsPlayer = isPlayer;
     }
 
-    // Call before each battle
+    // Surviving heroes return to full HP when the party gets back from an adventure (Rewards calls this).
+    // Whether HP also resets between encounters inside one adventure is the battle side's call
     public void RestoreFullHp()
     {
         CurrentHp = MaxHp;

@@ -12,6 +12,8 @@ The demo is one loop: **recruit heroes > go on an adventure > get loot**, three 
 | --- | --- |
 | `Assets/Docs/DataCheatSheet.md` | Tech contract: every public class, field, method, event and enum. **Source of truth.** |
 | `Assets/Docs/DevPractices.md` | How we work: assets, enums, scenes, git, tests |
+| `Assets/Docs/Systems/` | How each system works (start with `Overview.md`): heroes, items, relationships, adventures, config and testing |
+
 If code and the contract disagree, ask before "fixing" either one.
 
 ## Stack
@@ -25,8 +27,8 @@ If code and the contract disagree, ask before "fixing" either one.
 | Area | Owner | Branch |
 | --- | --- | --- |
 | Data models, enums, BalanceConfig, ScriptableObject definitions, GameManager, RosterManager, Inventory, HeroGenerator, DebugSeed, EditMode tests | Brian Lim | `Core-Data` |
-| ScreenId, ScreenManager, DayCycle, ScreenBase, screens, NavButton / DayCycleButton / DayLabel | zyang02 | `screen-manager` |
-| Adventure and battle mechanics (how fights play out, rewards flow). The data they use (`AdventureData`, `EncounterData`, `BattleResult`, `AdventureResult`, `AdventureContext`) lives in `Core/Data` as drafts he can reshape | zyang02 | his branches |
+| ScreenId, ScreenManager, DayCycle, ScreenBase, screens, NavButton / DayCycleButton / DayLabel | Zihui Yang | `screen-manager` |
+| Adventure and battle mechanics (how fights play out, rewards flow). The data they use (`AdventureData`, `EncounterData`, `BattleResult`, `AdventureResult`, `AdventureContext`) lives in `Core/Data` as drafts he can reshape | Zihui | his branches |
 
 Don't edit the other person's files on your branch. Propose the change in chat instead; they make it on theirs.
 
@@ -53,6 +55,7 @@ Don't edit the other person's files on your branch. Propose the change in chat i
 ```
 Assets/
   Docs/                  contract, dev practices
+  Docs/Systems/          how each system works
   Scripts/Core/          managers (GameManager, RosterManager, Inventory, ScreenManager, DayCycle)
   Scripts/Core/Data/     SwipeStory.Data assembly: enums, HeroData, ItemData, TraitData, BalanceConfig, AdventureData
   Scripts/Screens/       one script per screen, plus ScreenBase
