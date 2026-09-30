@@ -11,7 +11,10 @@ public class BalanceConfig : ScriptableObject
     [Header("Run")]
     [SerializeField, Min(0)] private int _startingGold = 100;
     [SerializeField, Min(0)] private int _startingUndoTokens = 1;
-    [SerializeField, Min(1)] private int _adventuresPerRun = 3;
+
+    [Header("Adventures")]
+    [Tooltip("In unlock order. The last one is the boss; clearing it wins the run")]
+    [SerializeField] private List<AdventureData> _adventures = new List<AdventureData>();
 
     [Header("Player hero")]
     [SerializeField] private string _defaultPlayerName = "Hero";
@@ -68,7 +71,7 @@ public class BalanceConfig : ScriptableObject
 
     public int StartingGold => _startingGold;
     public int StartingUndoTokens => _startingUndoTokens;
-    public int AdventuresPerRun => _adventuresPerRun;
+    public IReadOnlyList<AdventureData> Adventures => _adventures;
     public string DefaultPlayerName => _defaultPlayerName;
     public HeroClass DefaultPlayerClass => _defaultPlayerClass;
     public int RosterCapacity => _rosterCapacity;
@@ -86,6 +89,12 @@ public class BalanceConfig : ScriptableObject
     public float GoldRewardMultiplier => _goldRewardMultiplier;
     public float XpRewardMultiplier => _xpRewardMultiplier;
     public IReadOnlyList<ItemData> ShopItems => _shopItems;
+
+    // Position in the unlock order (0 = first adventure), or -1 if it isn't in the list
+    public int GetAdventureIndex(AdventureData adventure)
+    {
+        return adventure == null ? -1 : _adventures.IndexOf(adventure);
+    }
 
     public ClassStatProfile GetClassStats(HeroClass heroClass)
     {
@@ -180,6 +189,23 @@ public class BalanceConfig : ScriptableObject
         if (_breakupAffinityThreshold > _askOutAffinityThreshold)
         {
             Debug.LogWarning("[BalanceConfig] Breakup threshold is above the ask-out threshold.", this);
+        }
+
+        if (_adventures.Count == 0)
+        {
+            Debug.LogWarning("[BalanceConfig] No adventures listed.", this);
+        }
+
+        for (int i = 0; i < _adventures.Count; i++)
+        {
+            if (_adventures[i] == null)
+            {
+                Debug.LogWarning("[BalanceConfig] Adventure slot " + (i + 1) + " is empty.", this);
+            }
+            else if (_adventures.IndexOf(_adventures[i]) != i)
+            {
+                Debug.LogWarning("[BalanceConfig] " + _adventures[i].name + " is listed more than once.", this);
+            }
         }
 
         foreach (HeroClass heroClass in Enum.GetValues(typeof(HeroClass)))

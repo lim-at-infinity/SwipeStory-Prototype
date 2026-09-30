@@ -16,7 +16,7 @@ Everything in this doc is a shared contract: either of us can code against it to
 
 ## Game flow and screens
 
-The game is one Unity scene; each screen is a panel under `Canvas/Screens` (saved as a prefab) shown by `ScreenManager.Show(ScreenId)`. There is no Main Menu: the game starts in Town, and `GameManager.NewGame()` runs automatically on Play (it also creates the player hero). The run ends after the 3rd adventure, or when the player hero dies.
+The game is one Unity scene; each screen is a panel under `Canvas/Screens` (saved as a prefab) shown by `ScreenManager.Show(ScreenId)`. There is no Main Menu: the game starts in Town, and `GameManager.NewGame()` runs automatically on Play (it also creates the player hero). There are 3 adventures in a fixed order (the 3rd is the boss). Only the first starts unlocked; clearing one unlocks the next, and cleared adventures can be replayed. The run is won by clearing the boss and lost when the player hero dies.
 
 **Day cycle:** each day has a Daytime and a Night phase.
 
@@ -36,7 +36,7 @@ Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Re
 | `Shop` | 6 | Shop | Town, HUD | Back |
 | `AdventureSelect` | 7 | Adventure Selection + party pick | Town, HUD | Battle, Back |
 | `Battle` | 8 | Auto battle | AdventureSelect | Rewards (automatic) |
-| `Rewards` | 9 | Rewards | Battle | Recruit (via `EndDay`), or Summary if the run is over |
+| `Rewards` | 9 | Rewards | Battle | Recruit (via `EndDay`), or Summary if the run is over (boss cleared or player hero died) |
 | `Summary` | 10 | End-of-run summary | Rewards | Town (Restart, after `GameManager.NewGame`) |
 
 **ScreenId values are fixed numbers** because Unity saves them as ints in scenes and prefabs. Never reorder or renumber; only append new ones at the end. Planned screens (class pick, trait draw, Main Menu) get their values when they are added.
@@ -47,7 +47,7 @@ The **HUD / UI bar** is not a screen: it stays visible on every screen except Ba
 
 ## Shared data
 
-Runtime state is a **plain C# class** (`HeroData`, `BattleResult`, `AdventureContext`). Anything designed in the Editor is a **ScriptableObject asset** (`ItemData`, `TraitData`, `AdventureData`, `BalanceConfig`), created with Create > SwipeStory > ... and **never changed at runtime**. Heroes and inventories hold references to those assets, never copies.
+Runtime state is a **plain C# class** (`HeroData`, `BattleResult`, `AdventureResult`, `AdventureContext`). Anything designed in the Editor is a **ScriptableObject asset** (`ItemData`, `TraitData`, `AdventureData`, `BalanceConfig`), created with Create > SwipeStory > ... and **never changed at runtime**. Heroes and inventories hold references to those assets, never copies.
 
 All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeStory.Data`).
 
@@ -110,22 +110,45 @@ Effects are data only for now; nothing applies them yet.
 
 ### AdventureData (ScriptableObject, `Assets/Data/Adventures/`)
 
-`Id`, `DisplayName`, `Description`, `Difficulty` (1 to 5), `Enemies` (IReadOnlyList\<EnemyData\>), `GoldReward`, `XpReward`, `UndoTokenReward`, `ItemRewards` (IReadOnlyList\<ItemData\>). Rewards are base values.
+A series of fights, fought in order. `Id`, `DisplayName`, `Description`, `Difficulty` (1 to 5), `Encounters` (IReadOnlyList\<EncounterData\>), `GoldReward`, `XpReward`, `UndoTokenReward`, `ItemRewards` (IReadOnlyList\<ItemData\>). Rewards are base values, given once for clearing the whole adventure.
 
-**EnemyData** (plain class, authored inside AdventureData): `Name`, `MaxHp`, `Attack`, `Defense`, `Speed`. Battle makes its own copy to track HP.
+Prototype content: Adventure 1 has 2 encounters, Adventure 2 has 3, Adventure 3 (boss) has 1. The unlock order is `BalanceConfig.Adventures`.
+
+**EncounterData** (plain class, authored inside AdventureData): one fight. `Name`, `Enemies` (IReadOnlyList\<EnemyData\>).
+
+**EnemyData** (plain class, authored inside EncounterData): `Name`, `MaxHp`, `Attack`, `Defense`, `Speed`. Battle makes its own copy to track HP.
+
+Battle rules (HP carry-over between encounters, turn order, when fallen heroes are removed) belong to the battle side, not this data.
 
 ### BattleResult (plain class, immutable)
 
-`Won`, `Adventure`, `Party`, `Fallen` (heroes who died), `GoldEarned`, `XpEarned`, `UndoTokensEarned`, `ItemsEarned`. Rewards are already scaled by BalanceConfig multipliers.
+Outcome of **one fight** (one encounter). `Encounter` (EncounterData), `Won`, `Fallen` (NPC heroes who died in this fight).
+
+Draft: the battle side can add fields (turns, damage, and so on) as the battle design needs.
+
+### AdventureResult (plain class, immutable)
+
+Outcome of **one whole adventure**. `Adventure`, `Party`, `Battles` (IReadOnlyList\<BattleResult\>, one per encounter fought), `GoldEarned`, `XpEarned`, `UndoTokensEarned`, `ItemsEarned`. Rewards are given once and already scaled by BalanceConfig multipliers.
+
+- `Won` (derived): every encounter was fought and won. Losing any fight, or stopping early, means false
+- `Fallen` (derived): everyone who fell in any of the battles
+
+Draft: the battle side can reshape it as needed.
 
 ### AdventureContext (plain class)
 
 Carries one adventure from AdventureSelect through Battle to Rewards, plus the run's history for Summary.
 
-- `AdventureData Adventure`, `IReadOnlyList<HeroData> Party`, `BattleResult LastResult`, `IReadOnlyList<BattleResult> History`
-- `void Begin(AdventureData adventure, IEnumerable<HeroData> party)`: AdventureSelect, before showing Battle
-- `void Finish(BattleResult result)`: Battle, before showing Rewards
+- `AdventureData Adventure`, `IReadOnlyList<HeroData> Party`
+- `IReadOnlyList<BattleResult> Battles`: fights finished so far in the current adventure
+- `int CurrentEncounterIndex`: which encounter is fought next (0 = first). `bool HasMoreEncounters`: count only; Battle decides whether to stop early after a loss
+- `AdventureResult LastResult`, `IReadOnlyList<AdventureResult> History`
+- `void Begin(AdventureData adventure, IEnumerable<HeroData> party)`: AdventureSelect, before showing Battle. Clears `Battles` and `LastResult`
+- `void RecordBattle(BattleResult result)`: Battle, after each fight. Throws if called before `Begin`
+- `void Finish(AdventureResult result)`: Battle, after the last fight or a loss, before showing Rewards
 - `void Reset()`: on `GameManager.OnNewGame`
+
+Battle loop: while `HasMoreEncounters`, fight `Adventure.Encounters[CurrentEncounterIndex]`, `RecordBattle`, stop on a loss or player hero death; then `Finish(new AdventureResult(...))` and show Rewards.
 
 ### Small helpers
 
@@ -164,12 +187,15 @@ Managers are singletons on one `Managers` GameObject in the scene, reached throu
 
 - `BalanceConfig Config { get; }`: the one BalanceConfig asset, assigned in the Inspector
 - `int Gold { get; }`, `int UndoTokens { get; }`, `int AdventuresCompleted { get; }`
-- `bool IsRunOver` (true when AdventuresCompleted reaches `Config.AdventuresPerRun`)
+- `AdventuresCompleted` is **unlock progress**: how many adventures in `Config.Adventures` have been cleared, in order (0 to 3). Replays don't count
+- `bool IsRunOver`, `bool RunWon`: set by `EndRun`
 - `void NewGame()`: resets gold, tokens, adventures, roster and inventory, then creates the player hero (`Config.DefaultPlayerClass` until class pick exists)
 - `bool TrySpendGold(int amount)`: false if not enough gold
 - `void AddGold(int amount)`
 - `bool TryUseUndoToken()`, `void AddUndoToken()`
-- `void CompleteAdventure()`
+- `bool IsUnlocked(AdventureData adventure)`, `bool IsCleared(AdventureData adventure)`
+- `void CompleteAdventure(AdventureData adventure)`: call after a **won** adventure. Advances progress only on the first clear of the newest unlocked adventure; clearing the boss calls `EndRun(true)`
+- `void EndRun(bool won)`: ends the run once (later calls are ignored) and fires OnRunEnded. Battle calls `EndRun(false)` when the player hero dies
 
 ### RosterManager
 
@@ -224,7 +250,8 @@ All tuning numbers live here, never hardcoded in scripts.
 
 | Group | Values |
 | --- | --- |
-| Run | `StartingGold` 100, `StartingUndoTokens` 1, `AdventuresPerRun` 3 |
+| Run | `StartingGold` 100, `StartingUndoTokens` 1 |
+| Adventures | `Adventures`: ordered list of AdventureData, last = boss. `GetAdventureIndex(adventure)` returns its position or -1 |
 | Player hero | `DefaultPlayerName`, `DefaultPlayerClass` (until class pick exists) |
 | Roster and party | `RosterCapacity` 50 (every hero in the Adventurer Guild, including the player; 0 = unlimited), `PartySize` 6 (most heroes sent on one adventure, including the player hero) |
 | Day cycle | `RecruitCardsPerNight` 5, `TalkCandidatesPerDay` 2 |
@@ -255,7 +282,8 @@ All events are C# `event System.Action<...>` on the owning class. Listeners subs
 | --- | --- | --- | --- |
 | `OnGoldChanged` | GameManager | int newGold | HUD, Shop |
 | `OnUndoTokensChanged` | GameManager | int newCount | HUD, Recruit |
-| `OnAdventuresChanged` | GameManager | int completed | HUD, AdventureSelect |
+| `OnAdventuresChanged` | GameManager | int completed | HUD, AdventureSelect (refresh locks) |
+| `OnRunEnded` | GameManager | bool won | Screens that need to react to a run ending (e.g. go to Summary) |
 | `OnNewGame` | GameManager | none | All screens (reset their views), ScreenManager (reset AdventureContext) |
 | `OnRosterChanged` | RosterManager | none | Roster, AdventureSelect, HUD, Town |
 | `OnHeroUpdated` | RosterManager | HeroData | Inspection, Roster (stats, level, equipment, affinity changed) |
@@ -281,10 +309,10 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | Dialogue (VN) | HeroData (Name, Class, Affinity, Status) | `RelationshipSystem.AddAffinity` (`Config.AffinityPerTalk`), `DayCycle.EndDay` | OnTierChanged | OnDialogueFinished |
 | Relationship system | `HeroData.Affinity`, BalanceConfig | `RosterManager.NotifyHeroUpdated` | none | Tiers, battle stat bonus |
 | Shop | Gold, `Config.ShopItems` | `TrySpendGold`, `Inventory.Add` | OnGoldChanged, OnInventoryChanged | Items in inventory |
-| Adventure Select | `RosterManager.Heroes`, AdventuresCompleted, `Config.PartySize` (player hero always included) | `AdventureContext.Begin`, `ScreenManager.Show(Battle)` | OnRosterChanged, OnAdventuresChanged | Party + AdventureData in AdventureContext |
-| Battle | `AdventureContext` (Party, Adventure), `RelationshipSystem.GetStatBonus`, equipped items | `AdventureContext.Finish` | none | BattleResult |
-| Rewards | `AdventureContext.LastResult` | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `RemoveHero` (fallen), `CompleteAdventure`, `DayCycle.EndDay` (or `Show(Summary)` if the run is over) | none | Updated heroes, gold, items |
-| Summary | Roster, Gold, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
+| Adventure Select | `Config.Adventures`, `IsUnlocked`, `IsCleared`, `RosterManager.Heroes`, `Config.PartySize` (player hero always included) | `AdventureContext.Begin`, `ScreenManager.Show(Battle)` | OnRosterChanged, OnAdventuresChanged | Party + AdventureData in AdventureContext |
+| Battle | `AdventureContext` (Party, Adventure and its Encounters), `RelationshipSystem.GetStatBonus`, equipped items | `AdventureContext.RecordBattle` (each fight), `AdventureContext.Finish`, `GameManager.EndRun(false)` if the player hero dies | none | BattleResult per fight, AdventureResult |
+| Rewards | `AdventureContext.LastResult` (an AdventureResult) | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `RemoveHero` (fallen), `CompleteAdventure(adventure)` if won, then `Show(Summary)` if `IsRunOver`, else `DayCycle.EndDay` | none | Updated heroes, gold, items |
+| Summary | Roster, Gold, `RunWon`, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
 
 **Hand-offs between screens:** Roster to Inspection, and Town to Dialogue, pass the hero through `ScreenManager.SelectedHero`. Adventure Select to Battle to Rewards pass the party, adventure and result through `ScreenManager.Adventure` (an `AdventureContext`).
 
@@ -302,7 +330,7 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | Town | Talk buttons hidden on day 1, shown from day 2 (until it picks up to `TalkCandidatesPerDay` random NPC heroes) |
 | Recruit (`RecruitStubScreen`) | Pass and Recruit both just advance a counter; after 5 cards calls `StartNextDay` |
 | DialogueScreen | Shows one hardcoded line and a Close button |
-| Battle | Goes to Rewards after 1 second (no BattleResult yet) |
+| Battle | Goes to Rewards after 1 second (no results recorded yet) |
 
 **DebugSeed** (component on the Managers object, only runs in the Editor):
 
@@ -352,8 +380,9 @@ Details and reasons in `DevPractices.md`.
 - [x] ~~Can each hero be talked to once per round, or unlimited times?~~ One talk per day (talking is the day's activity)
 - [x] ~~How many swipe cards per visit to the Recruit screen, and does the deck refresh after each adventure?~~ 5 new cards every night, free
 - [x] ~~Is there a protagonist hero in the roster from day 1?~~ Yes, the player hero (`IsPlayer`); can't be removed or talked to
-- [ ] Can a lost adventure be retried, or does it still count toward the 3?
-- [ ] Does the run end after 3 adventures, or after a fixed number of days?
+- [x] ~~Can a lost adventure be retried?~~ Yes, and cleared adventures can be replayed; only a first win unlocks the next one
+- [x] ~~Does the run end after 3 adventures, or after a fixed number of days?~~ Won by clearing the boss (adventure 3), lost when the player hero dies. No day limit
+- [ ] Battle side: does HP carry over between encounters? Do rewards change on replays?
 - [ ] Can the player leave Dialogue without ending the day?
 - [ ] Should `GameManager.NewGame` also reset `DayCycle` to day 1, daytime? (needs `DayCycle.Reset()`)
 - [ ] Does the player hero draw traits on level-up?

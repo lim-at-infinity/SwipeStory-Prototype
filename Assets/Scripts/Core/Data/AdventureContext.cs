@@ -6,12 +6,23 @@ using System.Collections.Generic;
 public class AdventureContext
 {
     private readonly List<HeroData> _party = new List<HeroData>();
-    private readonly List<BattleResult> _history = new List<BattleResult>();
+    private readonly List<BattleResult> _battles = new List<BattleResult>();
+    private readonly List<AdventureResult> _history = new List<AdventureResult>();
 
     public AdventureData Adventure { get; private set; }
     public IReadOnlyList<HeroData> Party => _party;
-    public BattleResult LastResult { get; private set; }
-    public IReadOnlyList<BattleResult> History => _history;
+
+    // Fights finished so far in the current adventure
+    public IReadOnlyList<BattleResult> Battles => _battles;
+
+    // Which encounter is fought next (0 = first)
+    public int CurrentEncounterIndex => _battles.Count;
+
+    // Count only; Battle decides whether to stop early after a loss
+    public bool HasMoreEncounters => Adventure != null && _battles.Count < Adventure.Encounters.Count;
+
+    public AdventureResult LastResult { get; private set; }
+    public IReadOnlyList<AdventureResult> History => _history;
 
     // Called by AdventureSelect before showing Battle
     public void Begin(AdventureData adventure, IEnumerable<HeroData> party)
@@ -29,11 +40,28 @@ public class AdventureContext
         Adventure = adventure;
         _party.Clear();
         _party.AddRange(party);
+        _battles.Clear();
         LastResult = null;
     }
 
-    // Called by Battle before showing Rewards
-    public void Finish(BattleResult result)
+    // Called by Battle after each fight
+    public void RecordBattle(BattleResult result)
+    {
+        if (result == null)
+        {
+            throw new ArgumentNullException(nameof(result));
+        }
+
+        if (Adventure == null)
+        {
+            throw new InvalidOperationException("RecordBattle called before Begin.");
+        }
+
+        _battles.Add(result);
+    }
+
+    // Called by Battle after the last fight, or after a loss, before showing Rewards
+    public void Finish(AdventureResult result)
     {
         if (result == null)
         {
@@ -48,6 +76,7 @@ public class AdventureContext
     {
         Adventure = null;
         _party.Clear();
+        _battles.Clear();
         LastResult = null;
         _history.Clear();
     }
