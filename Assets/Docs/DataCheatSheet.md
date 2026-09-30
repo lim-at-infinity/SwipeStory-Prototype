@@ -1,6 +1,8 @@
 # SwipeStory Technical Contract
 
-Sep 25, 2026 · @Brian Lim
+Sep 25, 2026 · @Brian Lim · Updated Sep 29, 2026 (day cycle, no Main Menu, shared UI pieces; Core-Data: player hero, ScriptableObject items and traits, relationships, no rarity)
+
+See also: `DevPractices.md` (how we work) and `DeferredSystems.md` (designed, not built yet).
 
 ## Purpose and ground rules
 
@@ -14,77 +16,156 @@ Everything in this doc is a shared contract: either of us can code against it to
 
 ## Game flow and screens
 
-The game is one Unity scene; each screen is a prefab panel shown by `ScreenManager.Show(ScreenId)`. The run ends after the 3rd adventure.
+The game is one Unity scene; each screen is a panel under `Canvas/Screens` (saved as a prefab) shown by `ScreenManager.Show(ScreenId)`. There is no Main Menu: the game starts in Town, and `GameManager.NewGame()` runs automatically on Play (it also creates the player hero). The run ends after the 3rd adventure, or when the player hero dies.
 
-Main Menu > Town > (Recruit / Roster / Shop / Adventure Select) > Battle > Rewards > Town ... > Summary after adventure 3
+**Day cycle:** each day has a Daytime and a Night phase.
 
-| ScreenId | Screen | Opens from | Can go to |
-| --- | --- | --- | --- |
-| `MainMenu` | Main Menu | Game start, Summary (Restart) | Town |
-| `Town` | Town Hub | Main Menu, HUD, Rewards | Recruit, Roster, Shop, AdventureSelect |
-| `Recruit` | Recruitment Swipe | Town, HUD | Town (Back) |
-| `Roster` | Roster | Town, HUD | Inspection, Town (Back) |
-| `Inspection` | Hero Inspection | Roster | Dialogue, Roster (Back) |
-| `Dialogue` | Visual Novel talk scene | Inspection (Talk button) | Inspection (Back) |
-| `Shop` | Shop | Town, HUD | Town (Back) |
-| `AdventureSelect` | Adventure Selection + party pick | Town, HUD | Battle, Town (Back) |
-| `Battle` | Auto battle | AdventureSelect | Rewards (automatic) |
-| `Rewards` | Rewards | Battle | Town, or Summary if 3 adventures done |
-| `Summary` | End-of-run summary | Rewards | MainMenu (Restart) |
+- **Daytime:** the player is in Town and can freely browse Roster, Inspection and Shop. Doing **one activity** (an adventure, or talking to a hero) ends the day.
+- **Night:** `DayCycle.EndDay()` opens Recruit. After 5 hero cards, `DayCycle.StartNextDay()` increments the day and returns to Town. Recruiting is free.
 
-The **HUD / UI bar** is not a screen: it stays visible on every screen except MainMenu, Battle and Summary.
+Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Recruit (night N, 5 cards) > StartNextDay > Town (day N+1) ... > Summary after adventure 3
 
-## Shared data models
+| ScreenId | Value | Screen | Opens from | Can go to |
+| --- | --- | --- | --- | --- |
+| `None` | 0 | (no screen; initial value of `Current`) | | |
+| `Town` | 1 | Town Hub (game start) | Game start, HUD, `StartNextDay` | Roster, Shop, AdventureSelect, Dialogue (talk, hidden on day 1) |
+| `Recruit` | 2 | Recruitment Swipe (night only) | `EndDay` | Town (via `StartNextDay` after 5 cards) |
+| `Roster` | 3 | Roster | Town, HUD | Inspection, Back |
+| `Inspection` | 4 | Hero Inspection | Roster | Back |
+| `Dialogue` | 5 | Visual Novel talk scene | Town (talk buttons) | Recruit (via `EndDay` when finished) |
+| `Shop` | 6 | Shop | Town, HUD | Back |
+| `AdventureSelect` | 7 | Adventure Selection + party pick | Town, HUD | Battle, Back |
+| `Battle` | 8 | Auto battle | AdventureSelect | Rewards (automatic) |
+| `Rewards` | 9 | Rewards | Battle | Recruit (via `EndDay`), or Summary if the run is over |
+| `Summary` | 10 | End-of-run summary | Rewards | Town (Restart, after `GameManager.NewGame`) |
 
-These are plain C# classes (not MonoBehaviours) that every screen and system passes around.
+**ScreenId values are fixed numbers** because Unity saves them as ints in scenes and prefabs. Never reorder or renumber; only append new ones at the end. Planned screens (class pick, trait draw, Main Menu) get their values when they are added; see `DeferredSystems.md`.
 
-### HeroData
+**Back history:** showing `Town` or `Recruit` clears the Back history, so Back never leaves those screens.
 
-| Field | Type | Range / notes |
+The **HUD / UI bar** is not a screen: it stays visible on every screen except Battle and Summary.
+
+## Shared data
+
+Runtime state is a **plain C# class** (`HeroData`, `BattleResult`, `AdventureContext`). Anything designed in the Editor is a **ScriptableObject asset** (`ItemData`, `TraitData`, `AdventureData`, `BalanceConfig`), created with Create > SwipeStory > ... and **never changed at runtime**. Heroes and inventories hold references to those assets, never copies.
+
+All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeStory.Data`).
+
+### HeroData (plain class)
+
+| Member | Type | Range / notes |
 | --- | --- | --- |
-| `Id` | string | Unique, set by HeroGenerator (GUID) |
+| `Id` | string | GUID set in the constructor, read-only |
 | `Name` | string | Display name |
-| `Class` | HeroClass | Picks dialogue and stat bias |
-| `Rarity` | Rarity | Card color on swipe screen |
-| `Level` | int | 1 to 10, starts at 1 |
-| `Xp` | int | 0 up to next-level threshold |
+| `Class` | HeroClass | Picks dialogue, stat profile and which weapons fit |
+| `IsPlayer` | bool | True for the player's own hero; exactly one per run |
+| `Level` | int | 1 to `BalanceConfig.MaxLevel` (10). Recruits arrive at the player hero's level |
+| `Xp` | int | 0 up to `BalanceConfig.GetXpToNextLevel(Level)` |
 | `MaxHp` | int | Base stat |
 | `CurrentHp` | int | 0 to MaxHp; reset to MaxHp before each battle |
 | `Attack` | int | Base stat |
 | `Defense` | int | Base stat |
 | `Speed` | int | Decides battle turn order |
-| `LoveScore` | int | 0 to 100, changed only through `LoveSystem` |
-| `EquippedItem` | ItemData | null if none |
-| `RecruitCost` | int | Gold cost shown on the swipe card |
+| `Affinity` | int | 0 to 100 toward the player, starts at 0. Change only through `RelationshipSystem`. Unused on the player hero |
+| `Status` | RelationshipStatus | None, Dating or Ex, toward the player |
+| `Weapon` | ItemData | null if none. Sword, Dagger, Staff or Cross (class locked) |
+| `Hat` | ItemData | null if none. Any class |
+| `Traits` | IReadOnlyList\<TraitData\> | Added with `AddTrait` |
 
-### ItemData
+- `HeroData(string name, HeroClass heroClass, bool isPlayer = false)`
+- `void RestoreFullHp()`
+- `ItemData GetEquipped(EquipSlot slot)`, `void SetEquipped(EquipSlot slot, ItemData item)`: throws if the item doesn't fit that slot. Does not check class locks; use `Inventory.UseOn` for that
+- `void AddTrait(TraitData trait)`, `bool HasTrait(TraitData trait)`
 
-| Field | Type | Range / notes |
+Base stats never include equipment or tier bonuses; battle adds those.
+
+### ItemData (ScriptableObject, `Assets/Data/Items/`)
+
+| Member | Type | Range / notes |
 | --- | --- | --- |
-| `Id` | string | Unique per item definition |
-| `Name` | string | Display name |
-| `Type` | ItemType | Decides what using it does |
+| `Id` | string | Unique per item asset |
+| `DisplayName` | string | |
+| `Description` | string | |
+| `Icon` | Sprite | |
+| `Type` | ItemType | Decides the slot, class lock and what using it does |
+| `Stars` | int | 1 to 3 |
 | `Price` | int | Shop price in gold |
-| `StatBonus` | int | Used by Equipment and Potion |
-| `LoveBonus` | int | Used by Gift |
+| `StatBonus` | int | Weapon: Attack. Hat: Defense. Potion: HP restored |
+| `AffinityBonus` | int | Gift only |
+| `Slot` | EquipSlot | Read-only, from `Type` |
 
-### Enums
+- `bool CanBeEquippedBy(HeroClass heroClass)`
 
-- `HeroClass`: Warrior, Mage, Rogue, Healer
-- `Rarity`: Common, Rare, Epic
-- `ItemType`: Equipment, Potion, Gift
+Example: `OldSword.asset` has Type Sword, 1 star, small StatBonus.
+
+### TraitData (ScriptableObject, `Assets/Data/Traits/`)
+
+| Member | Type | Range / notes |
+| --- | --- | --- |
+| `Id`, `DisplayName`, `Description`, `Icon` | | |
+| `AffinityGainMultiplier` | float | 1 = normal. Charmer: 2 |
+| `DatingCapOverride` | int | 0 = use `BalanceConfig.DefaultDatingCap`. Multi-dating trait (name TBD): 3 |
+
+Effects are data only for now; nothing applies them yet (`DeferredSystems.md`).
+
+### AdventureData (ScriptableObject, `Assets/Data/Adventures/`)
+
+`Id`, `DisplayName`, `Description`, `Difficulty` (1 to 5), `Enemies` (IReadOnlyList\<EnemyData\>), `GoldReward`, `XpReward`, `UndoTokenReward`, `ItemRewards` (IReadOnlyList\<ItemData\>). Rewards are base values.
+
+**EnemyData** (plain class, authored inside AdventureData): `Name`, `MaxHp`, `Attack`, `Defense`, `Speed`. Battle makes its own copy to track HP.
+
+### BattleResult (plain class, immutable)
+
+`Won`, `Adventure`, `Party`, `Fallen` (heroes who died), `GoldEarned`, `XpEarned`, `UndoTokensEarned`, `ItemsEarned`. Rewards are already scaled by BalanceConfig multipliers.
+
+### AdventureContext (plain class)
+
+Carries one adventure from AdventureSelect through Battle to Rewards, plus the run's history for Summary.
+
+- `AdventureData Adventure`, `IReadOnlyList<HeroData> Party`, `BattleResult LastResult`, `IReadOnlyList<BattleResult> History`
+- `void Begin(AdventureData adventure, IEnumerable<HeroData> party)`: AdventureSelect, before showing Battle
+- `void Finish(BattleResult result)`: Battle, before showing Rewards
+- `void Reset()`: on `GameManager.OnNewGame`
+
+### Small helpers
+
+- **IntRange** (serializable struct): `Min`, `Max`, `int Roll(System.Random rng)` (both ends included), `int Clamp(int value)`
+- **ClassStatProfile** (serializable struct in BalanceConfig): level 1 `IntRange` for MaxHp / Attack / Defense / Speed, plus flat growth per level
+- **ItemTypeRules** (static): `EquipSlot GetSlot(ItemType)`, `bool TryGetRequiredClass(ItemType, out HeroClass)`, `bool CanEquip(ItemType, HeroClass)`
+- **HeroFactory** (static): `HeroData Create(BalanceConfig config, System.Random rng, string name, HeroClass heroClass, int level, bool isPlayer = false)`. Stats = level 1 roll + growth per level gained
+
+### Enums (explicit values, append only)
+
+- `HeroClass`: Warrior = 0, Mage = 1, Rogue = 2, Healer = 3
+- `ItemType`: Hat = 0, Sword = 1, Dagger = 2, Staff = 3, Cross = 4, Potion = 5, Gift = 6
+- `EquipSlot`: None = 0, Weapon = 1, Hat = 2
+- `RelationshipTier`: Stranger = 0 (affinity 0 to 24), Friend = 1 (25 to 49), Close = 2 (50 to 74), Devoted = 3 (75 to 100). Always calculated from affinity, never stored
+- `RelationshipStatus`: None = 0, Dating = 1, Ex = 2
 - `ScreenId`: see the screen table above
-- `LoveTier`: Stranger (0 to 24), Friend (25 to 49), Close (50 to 74), Devoted (75 to 100)
+
+**Class locks:**
+
+| ItemType | Slot | Who can equip |
+| --- | --- | --- |
+| Hat | Hat | Any class |
+| Sword | Weapon | Warrior |
+| Dagger | Weapon | Rogue |
+| Staff | Weapon | Mage |
+| Cross | Weapon | Healer |
+| Potion, Gift | None | Used, not equipped |
 
 ## Managers and public APIs
 
 Managers are singletons on one `Managers` GameObject in the scene, reached through `ClassName.Instance`. Only the members below are shared.
 
+**Startup order:** data managers (GameManager, RosterManager, Inventory, HeroGenerator, RelationshipSystem) run at `[DefaultExecutionOrder(-200)]`, DebugSeed at `-150`, ScreenManager and DayCycle at `-100`. `GameManager.Start` calls `NewGame()`, so the roster and player hero exist before Town opens.
+
 ### GameManager
 
+- `BalanceConfig Config { get; }`: the one BalanceConfig asset, assigned in the Inspector
 - `int Gold { get; }`, `int UndoTokens { get; }`, `int AdventuresCompleted { get; }`
-- `bool IsRunOver` (true when AdventuresCompleted == 3)
-- `void NewGame()`: resets gold, tokens, adventures, roster and inventory
+- `bool IsRunOver` (true when AdventuresCompleted reaches `Config.AdventuresPerRun`)
+- `void NewGame()`: resets gold, tokens, adventures, roster and inventory, then creates the player hero (`Config.DefaultPlayerClass` until class pick exists)
 - `bool TrySpendGold(int amount)`: false if not enough gold
 - `void AddGold(int amount)`
 - `bool TryUseUndoToken()`, `void AddUndoToken()`
@@ -93,42 +174,78 @@ Managers are singletons on one `Managers` GameObject in the scene, reached throu
 ### RosterManager
 
 - `IReadOnlyList<HeroData> Heroes`
-- `int Capacity`
-- `bool TryAddHero(HeroData hero)`: false if roster is full
-- `void RemoveHero(HeroData hero)`
+- `HeroData PlayerHero { get; }`
+- `int Capacity`: includes the player hero; 0 = unlimited. `bool IsFull`: always false when unlimited
+- `bool TryAddHero(HeroData hero)`: false if full, null, already in the roster, or a second player hero
+- `void RemoveHero(HeroData hero)`: ignored for the player hero
 - `HeroData GetById(string id)`
 - `void NotifyHeroUpdated(HeroData hero)`: call after changing any hero field; fires OnHeroUpdated
 
 ### HeroGenerator
 
-- `HeroData Generate()`: one random hero using BalanceConfig ranges
+- `HeroData Generate()`: one random recruit (random class and name) at the player hero's level
+- `HeroData CreatePlayer(HeroClass heroClass, string name)`: level 1 player hero
 
 ### Inventory
 
-- `IReadOnlyList<ItemData> Items`
+- `IReadOnlyList<ItemData> Items`: references to item assets; the same asset can appear more than once
 - `void Add(ItemData item)`, `bool Remove(ItemData item)`
-- `bool UseOn(ItemData item, HeroData hero)`: equips Equipment, applies Potion, gives Gift (calls LoveSystem)
+- `bool UseOn(ItemData item, HeroData hero)`: Weapon or Hat equips if the class allows it (the old item returns to the inventory); Potion restores HP; Gift adds affinity through RelationshipSystem (not on the player hero). Removes the used item. False if nothing happened
 
 ### ScreenManager
 
-- `ScreenId Current { get; }`
-- `void Show(ScreenId id)`
+- `ScreenId Current { get; }`: `None` until the start screen (Town) is shown
+- `void Show(ScreenId id)`: showing Town or Recruit clears the Back history
 - `void Back()`: returns to the previous screen
-- `HeroData SelectedHero { get; set; }`: the hero passed between Roster, Inspection and Dialogue
+- *Planned, added on screen-manager now that the data types exist:*
+  - `HeroData SelectedHero { get; set; }`: the hero passed between Roster and Inspection, and from Town's talk buttons into Dialogue
+  - `AdventureContext Adventure { get; }`: created once; `Reset()` it on `GameManager.OnNewGame`
 
-### LoveSystem
+### DayCycle
 
-- `void AddLove(HeroData hero, int amount)`: clamps 0 to 100, fires OnLoveChanged
-- `LoveTier GetTier(HeroData hero)`
-- `int GetStatBonus(HeroData hero)`: flat bonus used in battle per tier
+- `int Day { get; }`: starts at 1
+- `bool IsNight { get; }`
+- `void EndDay()`: call after the day's one activity (Rewards or a finished conversation); switches to night and shows Recruit. Ignored at night
+- `void StartNextDay()`: call when the night's recruit cards are used up; increments Day and shows Town. Ignored during the day
+
+### RelationshipSystem
+
+- `void AddAffinity(HeroData hero, int amount)`: clamps 0 to 100, fires OnAffinityChanged (and OnTierChanged when the tier changes). Ignored for the player hero
+- `RelationshipTier GetTier(HeroData hero)`
+- `int GetStatBonus(HeroData hero)`: flat battle bonus for the hero's tier
 
 ### DialogueScreen
 
 - `void Open(HeroData hero)`: loads the conversation for the hero's class and shows the Dialogue screen
 
-### BalanceConfig (ScriptableObject)
+### BalanceConfig (ScriptableObject, `Assets/Data/Config/`)
 
-All tuning numbers live here, never hardcoded in scripts: starting gold, starting undo tokens, roster capacity, recruit costs by rarity, stat ranges, love gains (talk, gift, battle), tier thresholds, reward multipliers.
+All tuning numbers live here, never hardcoded in scripts.
+
+| Group | Values |
+| --- | --- |
+| Run | `StartingGold` 100, `StartingUndoTokens` 1, `AdventuresPerRun` 3 |
+| Player hero | `DefaultPlayerName`, `DefaultPlayerClass` (until class pick exists) |
+| Roster and party | `RosterCapacity` 50 (every hero in the Adventurer Guild, including the player; 0 = unlimited), `PartySize` 6 (most heroes sent on one adventure, including the player hero) |
+| Day cycle | `RecruitCardsPerNight` 5, `TalkCandidatesPerDay` 2 |
+| Heroes | `MaxLevel` 10, one `ClassStatProfile` per class, XP table |
+| Relationships | `MaxAffinity` 100 (const), tier thresholds 0 / 25 / 50 / 75, tier stat bonus 0 / 1 / 2 / 4, `AffinityPerTalk` 5, `AffinityPerBattle` 3, `AskOutAffinityThreshold` 60, `BreakupAffinityThreshold` 40, `DefaultDatingCap` 1 |
+| Traits | `TraitCardsPerLevelUp` 6, `TraitPool` |
+| Rewards | `GoldRewardMultiplier`, `XpRewardMultiplier` |
+| Shop | `ShopItems` |
+
+- `ClassStatProfile GetClassStats(HeroClass heroClass)`: throws `KeyNotFoundException` if missing
+- `int GetXpToNextLevel(int level)`: `int.MaxValue` at max level
+- `RelationshipTier GetTierForAffinity(int affinity)`, `int GetTierStatBonus(RelationshipTier tier)`
+- `bool CanAskOut(int affinity)` (above 60), `bool ShouldBreakUp(int affinity)` (below 40)
+
+## Shared UI pieces
+
+Reusable components any screen prefab can use.
+
+- **ScreenBase** (MonoBehaviour): base class for every screen. Set its `Id` (ScreenId) in the Inspector; ScreenManager finds all ScreenBase children of `Canvas/Screens` on Awake. Each screen script derives from it (`TownScreen : ScreenBase`). A screen with no logic can use ScreenBase directly.
+- **NavButton** (requires Button): pick a target `ScreenId` in the Inspector, or tick `Go Back` to call `ScreenManager.Back()`. Use this for plain navigation instead of writing a script.
+- **DayCycleButton** (requires Button): pick `EndDay` or `StartNextDay` in the Inspector.
 
 ## Events
 
@@ -136,17 +253,18 @@ All events are C# `event System.Action<...>` on the owning class. Listeners subs
 
 | Event | Fired by | Payload | Listened to by |
 | --- | --- | --- | --- |
-| `OnGoldChanged` | GameManager | int newGold | HUD, Shop, Recruit |
+| `OnGoldChanged` | GameManager | int newGold | HUD, Shop |
 | `OnUndoTokensChanged` | GameManager | int newCount | HUD, Recruit |
 | `OnAdventuresChanged` | GameManager | int completed | HUD, AdventureSelect |
-| `OnNewGame` | GameManager | none | All screens (reset their views) |
-| `OnRosterChanged` | RosterManager | none | Roster, AdventureSelect, HUD |
-| `OnHeroUpdated` | RosterManager | HeroData | Inspection, Roster (stats, level, item changed) |
+| `OnNewGame` | GameManager | none | All screens (reset their views), ScreenManager (reset AdventureContext) |
+| `OnRosterChanged` | RosterManager | none | Roster, AdventureSelect, HUD, Town |
+| `OnHeroUpdated` | RosterManager | HeroData | Inspection, Roster (stats, level, equipment, affinity changed) |
 | `OnInventoryChanged` | Inventory | none | Shop, Inspection |
-| `OnLoveChanged` | LoveSystem | HeroData, int newScore | Inspection love meter, Dialogue |
-| `OnLoveTierChanged` | LoveSystem | HeroData, LoveTier | Dialogue (tier-up message) |
+| `OnAffinityChanged` | RelationshipSystem | HeroData, int newAffinity | Inspection affinity meter, Dialogue |
+| `OnTierChanged` | RelationshipSystem | HeroData, RelationshipTier | Dialogue (tier-up message) |
 | `OnScreenChanged` | ScreenManager | ScreenId from, ScreenId to | HUD (hide/show), screens (refresh on open) |
-| `OnDialogueFinished` | DialogueScreen | HeroData | Inspection (refresh) |
+| `OnPhaseChanged` | DayCycle | int day, bool isNight | HUD day label, Town |
+| `OnDialogueFinished` | DialogueScreen | HeroData | Town (refresh talk buttons) |
 
 ## Screen and feature dependencies
 
@@ -154,61 +272,69 @@ This is what each screen or feature reads, calls and listens to. If something yo
 
 | Screen / feature | Reads | Calls | Listens to | Provides to others |
 | --- | --- | --- | --- | --- |
-| Main Menu | none | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Run start |
-| HUD / UI bar | Gold, UndoTokens, AdventuresCompleted | `ScreenManager.Show` (quick nav) | OnGoldChanged, OnUndoTokensChanged, OnAdventuresChanged, OnScreenChanged | Always-on status display |
-| Town Hub | AdventuresCompleted | `ScreenManager.Show` | OnAdventuresChanged | Entry point to every feature |
-| Recruitment Swipe | Gold, UndoTokens, Roster Capacity | `HeroGenerator.Generate`, `TrySpendGold`, `TryAddHero`, `TryUseUndoToken` | OnGoldChanged, OnUndoTokensChanged | New HeroData in roster |
+| HUD / UI bar | Gold, UndoTokens, AdventuresCompleted, Day, IsNight | `ScreenManager.Show` (quick nav) | OnGoldChanged, OnUndoTokensChanged, OnAdventuresChanged, OnScreenChanged, OnPhaseChanged | Always-on status display |
+| Town Hub | AdventuresCompleted, `DayCycle.Day`, `RosterManager.Heroes` (talk candidates, not the player hero) | `ScreenManager.Show`, `DialogueScreen.Open` | OnAdventuresChanged, OnPhaseChanged, OnRosterChanged, OnDialogueFinished | Entry point to every daytime feature, talk entry point |
+| Recruitment Swipe (night) | UndoTokens, `RosterManager.IsFull`, `Config.RecruitCardsPerNight` | `HeroGenerator.Generate`, `TryAddHero`, `TryUseUndoToken`, `DayCycle.StartNextDay` | OnUndoTokensChanged | New HeroData in roster |
 | Roster | `RosterManager.Heroes` | Sets `ScreenManager.SelectedHero`, `Show(Inspection)` | OnRosterChanged, OnHeroUpdated | Selected hero |
-| Hero Inspection | `SelectedHero`, `LoveSystem.GetTier`, Inventory.Items | `DialogueScreen.Open`, `Inventory.UseOn` | OnHeroUpdated, OnLoveChanged, OnInventoryChanged, OnDialogueFinished | Talk + equip entry point |
-| Love meter (prefab) | `HeroData.LoveScore`, `GetTier` | none | OnLoveChanged | Reusable meter for Inspection and Dialogue |
-| Dialogue (VN) | HeroData (Name, Class, LoveScore) | `LoveSystem.AddLove`, `ScreenManager.Back` | OnLoveTierChanged | OnDialogueFinished |
-| Love system | `HeroData.LoveScore`, BalanceConfig | `RosterManager.NotifyHeroUpdated` | none | Tiers, battle stat bonus |
-| Shop | Gold, BalanceConfig item list | `TrySpendGold`, `Inventory.Add` | OnGoldChanged, OnInventoryChanged | Items in inventory |
-| Adventure Select | `RosterManager.Heroes`, AdventuresCompleted | `ScreenManager.Show(Battle)` with chosen party | OnRosterChanged, OnAdventuresChanged | Party (List of HeroData) + AdventureData |
-| Battle | Party, AdventureData, `LoveSystem.GetStatBonus` | none | none | BattleResult |
-| Rewards | BattleResult | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddLove`, `CompleteAdventure` | none | Updated heroes, gold, items |
-| Summary | Roster, Gold, results history | `GameManager.NewGame` | none | Restart |
+| Hero Inspection | `SelectedHero`, `RelationshipSystem.GetTier`, `Inventory.Items`, `ItemData.CanBeEquippedBy` | `Inventory.UseOn` | OnHeroUpdated, OnAffinityChanged, OnInventoryChanged | Equip entry point |
+| Affinity meter (prefab) | `HeroData.Affinity`, `GetTier`, `Status` | none | OnAffinityChanged | Reusable meter for Inspection and Dialogue |
+| Dialogue (VN) | HeroData (Name, Class, Affinity, Status) | `RelationshipSystem.AddAffinity` (`Config.AffinityPerTalk`), `DayCycle.EndDay` | OnTierChanged | OnDialogueFinished |
+| Relationship system | `HeroData.Affinity`, BalanceConfig | `RosterManager.NotifyHeroUpdated` | none | Tiers, battle stat bonus |
+| Shop | Gold, `Config.ShopItems` | `TrySpendGold`, `Inventory.Add` | OnGoldChanged, OnInventoryChanged | Items in inventory |
+| Adventure Select | `RosterManager.Heroes`, AdventuresCompleted, `Config.PartySize` (player hero always included) | `AdventureContext.Begin`, `ScreenManager.Show(Battle)` | OnRosterChanged, OnAdventuresChanged | Party + AdventureData in AdventureContext |
+| Battle | `AdventureContext` (Party, Adventure), `RelationshipSystem.GetStatBonus`, equipped items | `AdventureContext.Finish` | none | BattleResult |
+| Rewards | `AdventureContext.LastResult` | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `RemoveHero` (fallen), `CompleteAdventure`, `DayCycle.EndDay` (or `Show(Summary)` if the run is over) | none | Updated heroes, gold, items |
+| Summary | Roster, Gold, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
 
-**Hand-offs between screens:** Roster to Inspection to Dialogue pass the hero through `ScreenManager.SelectedHero`. Adventure Select to Battle to Rewards pass `Party`, `AdventureData` and `BattleResult` through a small `AdventureContext` holder on ScreenManager.
+**Hand-offs between screens:** Roster to Inspection, and Town to Dialogue, pass the hero through `ScreenManager.SelectedHero`. Adventure Select to Battle to Rewards pass the party, adventure and result through `ScreenManager.Adventure` (an `AdventureContext`).
 
 ## Stubs and placeholder data
 
-The first PR adds every class in this doc with final signatures and the stub behavior below, so both of us can build screens right away.
-
-| Class | Stub behavior until real logic lands |
+| Class | Behavior now |
 | --- | --- |
-| GameManager | Gold = 100, UndoTokens = 1; methods change the values and fire events (this one is small enough to be real from day 1) |
-| RosterManager | Real list; `TryAddHero` ignores capacity |
-| HeroGenerator | Returns a hero from a fixed list of 6, cycling |
-| Inventory | Real list; `UseOn` only removes the item |
-| LoveSystem | `AddLove` clamps and fires events; `GetStatBonus` returns 0 |
-| ScreenManager | Real: enables one panel, disables the rest |
+| GameManager | Real |
+| RosterManager | Real (capacity 50, set in BalanceConfig) |
+| HeroGenerator | Real (random class and name, stats from BalanceConfig at the player's level) |
+| Inventory | Real (equip with class locks, potions, gifts) |
+| RelationshipSystem | `AddAffinity`, `GetTier`, `GetStatBonus` real. Trait effects, dating, breakups not yet |
+| ScreenManager | Real: enables one panel, disables the rest; SelectedHero and AdventureContext not added yet |
+| DayCycle | Real |
+| Town | Talk buttons hidden on day 1, shown from day 2 (until it picks up to `TalkCandidatesPerDay` random NPC heroes) |
+| Recruit (`RecruitStubScreen`) | Pass and Recruit both just advance a counter; after 5 cards calls `StartNextDay` |
 | DialogueScreen | Shows one hardcoded line and a Close button |
-| Battle | Returns a win BattleResult after 1 second |
+| Battle | Goes to Rewards after 1 second (no BattleResult yet) |
 
-**DebugSeed** (component on the Managers object, only active in the Editor):
+**DebugSeed** (component on the Managers object, only runs in the Editor):
 
-- Adds 3 heroes on Play: a Warrior (LoveScore 0), a Mage (LoveScore 45) and a Healer (LoveScore 90), so every love tier can be tested
-- Adds 1 of each ItemType to the Inventory
-- Has a toggle to skip straight to any ScreenId, so a screen can be tested without clicking through the flow
+- On Play, after `NewGame` has created the player hero, adds one NPC per relationship tier: Warrior (affinity 0), Mage (30), Rogue (65, can be asked out), Healer (90). Editable in the Inspector
+- Adds any item assets dragged into its list (e.g. one of each ItemType)
+- Skip-to-screen toggle: added once screen-manager is merged, since `ScreenId` isn't on Core-Data yet
 
 ## Conventions
 
+Details and reasons in `DevPractices.md`.
+
 **Code**
 
-- PascalCase for classes, methods, properties and events; `_camelCase` for private fields
+- PascalCase for classes, methods, properties and events; `_camelCase` for private fields; global namespace
 - Braces on their own line
 - Events start with `On`; methods that can fail start with `Try` and return bool
 - Game logic (battle, rewards, generation) in plain C# classes; MonoBehaviours only for screens and managers
+- Every screen script derives from `ScreenBase`; plain navigation uses `NavButton` instead of custom code
 - No magic numbers in scripts: tuning values go in BalanceConfig
+- Randomness: pass a `System.Random` in, don't call `UnityEngine.Random`
+- ScriptableObject assets are read-only at runtime
 
 **Folders**
 
-- `Assets/Scripts/Core` (data models, managers, BalanceConfig)
-- `Assets/Scripts/Screens` (one script per screen)
-- `Assets/Scripts/Systems` (LoveSystem, battle, rewards)
-- `Assets/Prefabs/Screens`, `Assets/Prefabs/UI` (shared widgets like hero card, stat bar, love meter)
-- `Assets/Data` (ScriptableObject assets: BalanceConfig, adventures, dialogue)
+- `Assets/Scripts/Core` (managers) and `Assets/Scripts/Core/Data` (assembly `SwipeStory.Data`: enums, data classes, ScriptableObject definitions; no references)
+- `Assets/Scripts/Screens` (one script per screen, plus `ScreenBase`)
+- `Assets/Scripts/Systems` (RelationshipSystem, battle, rewards)
+- `Assets/Scripts/UI` (shared widget scripts: NavButton, DayCycleButton, DayLabel)
+- `Assets/Scripts/Debug` (DebugSeed)
+- `Assets/Tests/EditMode` (assembly `SwipeStory.Tests.EditMode`)
+- `Assets/Prefabs/Screens`, `Assets/Prefabs/UI` (shared widgets like hero card, stat bar, affinity meter)
+- `Assets/Data/Config`, `Assets/Data/Items`, `Assets/Data/Traits`, `Assets/Data/Adventures`, `Assets/Data/Dialogue` (ScriptableObject assets)
 
 **Scene and git**
 
@@ -219,9 +345,15 @@ The first PR adds every class in this doc with final signatures and the stub beh
 
 ## Open questions
 
-- [ ] Roster capacity and party size (suggested: roster 6, party 3)
-- [ ] Can a hero die or leave the roster after a lost battle?
-- [ ] Does love score ever go down (bad dialogue choice, losing a battle)?
-- [ ] Can each hero be talked to once per round, or unlimited times?
-- [ ] How many swipe cards per visit to the Recruit screen, and does the deck refresh after each adventure?
+- [x] ~~Roster capacity and party size~~ Party: up to 6 heroes sent on an adventure. Roster: every hero in the Adventurer Guild, up to 50
+- [x] ~~Does the player hero have to be in every party?~~ Yes, for now
+- [x] ~~Can a hero die or leave the roster after a lost battle?~~ NPC death is permanent; player death ends the run
+- [x] ~~Does love score ever go down?~~ Yes (breakups need it); what lowers it is still open, see `DeferredSystems.md`
+- [x] ~~Can each hero be talked to once per round, or unlimited times?~~ One talk per day (talking is the day's activity)
+- [x] ~~How many swipe cards per visit to the Recruit screen, and does the deck refresh after each adventure?~~ 5 new cards every night, free
+- [x] ~~Is there a protagonist hero in the roster from day 1?~~ Yes, the player hero (`IsPlayer`); can't be removed or talked to
 - [ ] Can a lost adventure be retried, or does it still count toward the 3?
+- [ ] Does the run end after 3 adventures, or after a fixed number of days?
+- [ ] Can the player leave Dialogue without ending the day?
+- [ ] Should `GameManager.NewGame` also reset `DayCycle` to day 1, daytime? (needs `DayCycle.Reset()`)
+- [ ] Does the player hero draw traits on level-up?
