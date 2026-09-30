@@ -35,7 +35,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // Start, not Awake: RosterManager, Inventory and HeroGenerator share this execution order,
+    // Start, not Awake: RosterManager, Inventory, HeroGenerator and RelationshipSystem share this execution order,
     // so their Instances may not exist yet during Awake. Still runs before ScreenManager shows Town (-100)
     private void Start()
     {
@@ -52,6 +52,7 @@ public class GameManager : MonoBehaviour
 
         RosterManager.Instance.Clear();
         Inventory.Instance.Clear();
+        RelationshipSystem.Instance.Clear();
 
         HeroData player = HeroGenerator.Instance.CreatePlayer(_config.DefaultPlayerClass, _config.DefaultPlayerName);
         RosterManager.Instance.TryAddHero(player);

@@ -4,6 +4,7 @@ using UnityEngine;
 
 // Runtime state for one hero. A plain class, not an asset: it changes all run.
 // Base stats never include equipment or tier bonuses; battle adds those.
+// Affinity and relationship status live in RelationshipSystem (one record per pair of heroes), not here.
 // After changing any field, call RosterManager.NotifyHeroUpdated.
 [Serializable]
 public class HeroData
@@ -23,10 +24,6 @@ public class HeroData
     [field: SerializeField] public int Attack { get; set; }
     [field: SerializeField] public int Defense { get; set; }
     [field: SerializeField] public int Speed { get; set; }
-
-    // Toward the player, 0 to BalanceConfig.MaxAffinity. Change only through RelationshipSystem
-    [field: SerializeField] public int Affinity { get; set; }
-    [field: SerializeField] public RelationshipStatus Status { get; set; }
 
     [field: SerializeField] public ItemData Weapon { get; set; }
     [field: SerializeField] public ItemData Hat { get; set; }

@@ -9,11 +9,16 @@ public class RosterManager : MonoBehaviour
 
     public event Action OnRosterChanged;
     public event Action<HeroData> OnHeroUpdated;
+    public event Action<HeroData> OnHeroFell;
 
     private readonly List<HeroData> _heroes = new List<HeroData>();
+    private readonly List<HeroData> _fallen = new List<HeroData>();
 
     public IReadOnlyList<HeroData> Heroes => _heroes;
     public HeroData PlayerHero { get; private set; }
+
+    // NPC heroes who died this run, oldest first. Kept so history (e.g. Widowed relationships, Summary) can show them
+    public IReadOnlyList<HeroData> FallenHeroes => _fallen;
 
     // Includes the player hero. 0 = unlimited
     public int Capacity => GameManager.Instance.Config.RosterCapacity;
@@ -61,9 +66,29 @@ public class RosterManager : MonoBehaviour
         }
     }
 
+    // NPC death: moves the hero from the roster to FallenHeroes. Their equipped Weapon and Hat are lost with them.
+    // The player hero's death ends the run instead (GameManager.EndRun(false)), so it is ignored here
+    public void MarkFallen(HeroData hero)
+    {
+        if (hero == null || hero.IsPlayer || !_heroes.Remove(hero))
+        {
+            return;
+        }
+
+        _fallen.Add(hero);
+        OnHeroFell?.Invoke(hero);
+        OnRosterChanged?.Invoke();
+    }
+
+    // Living heroes only
     public HeroData GetById(string id)
     {
         return _heroes.Find(hero => hero.Id == id);
+    }
+
+    public HeroData GetFallenById(string id)
+    {
+        return _fallen.Find(hero => hero.Id == id);
     }
 
     public void NotifyHeroUpdated(HeroData hero)
@@ -75,6 +100,7 @@ public class RosterManager : MonoBehaviour
     internal void Clear()
     {
         _heroes.Clear();
+        _fallen.Clear();
         PlayerHero = null;
         OnRosterChanged?.Invoke();
     }

@@ -6,10 +6,10 @@ using UnityEngine;
 [Serializable]
 public class EncounterData
 {
-    [SerializeField] private List<EnemyData> _enemies = new List<EnemyData>();
-
-    // Also used as the element label in the Inspector list
+    // Declared first on purpose: Unity labels list elements with their first field when it's a string
     [field: SerializeField] public string Name { get; private set; }
+
+    [SerializeField] private List<EnemyData> _enemies = new List<EnemyData>();
 
     public IReadOnlyList<EnemyData> Enemies => _enemies;
 }

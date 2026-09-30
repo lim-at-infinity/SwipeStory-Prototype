@@ -1,6 +1,6 @@
 # SwipeStory Prototype
 
-Two-person Unity prototype for USC CSCI526 (repo `lim-at-infinity/SwipeStory-Prototype`, public). A town-management RPG: recruit heroes by swiping cards, build relationships with them, and send parties on auto-battle adventures. The run ends after 3 adventures.
+Two-person Unity prototype for USC CSCI526 (repo `lim-at-infinity/SwipeStory-Prototype`, public). A town-management RPG: recruit heroes by swiping cards, build relationships with them, and send parties on auto-battle adventures. There are 3 adventures in unlock order; the run is won by clearing the 3rd (the boss) and lost if the player hero dies.
 
 ## Prototype demo focus
 
@@ -26,6 +26,7 @@ If code and the contract disagree, ask before "fixing" either one.
 | --- | --- | --- |
 | Data models, enums, BalanceConfig, ScriptableObject definitions, GameManager, RosterManager, Inventory, HeroGenerator, DebugSeed, EditMode tests | Brian Lim | `Core-Data` |
 | ScreenId, ScreenManager, DayCycle, ScreenBase, screens, NavButton / DayCycleButton / DayLabel | zyang02 | `screen-manager` |
+| Adventure and battle mechanics (how fights play out, rewards flow). The data they use (`AdventureData`, `EncounterData`, `BattleResult`, `AdventureResult`, `AdventureContext`) lives in `Core/Data` as drafts he can reshape | zyang02 | his branches |
 
 Don't edit the other person's files on your branch. Propose the change in chat instead; they make it on theirs.
 
@@ -51,7 +52,7 @@ Don't edit the other person's files on your branch. Propose the change in chat i
 
 ```
 Assets/
-  Docs/                  contract, dev practices, deferred systems
+  Docs/                  contract, dev practices
   Scripts/Core/          managers (GameManager, RosterManager, Inventory, ScreenManager, DayCycle)
   Scripts/Core/Data/     SwipeStory.Data assembly: enums, HeroData, ItemData, TraitData, BalanceConfig, AdventureData
   Scripts/Screens/       one script per screen, plus ScreenBase

@@ -56,12 +56,10 @@ public class HeroFactoryTests
     }
 
     [Test]
-    public void Create_NewHero_StartsWithNoRelationship()
+    public void Create_NewHero_StartsWithNoEquipmentOrTraits()
     {
         HeroData hero = HeroFactory.Create(_config, _rng, "Test", HeroClass.Healer, 1);
 
-        Assert.AreEqual(0, hero.Affinity);
-        Assert.AreEqual(RelationshipStatus.None, hero.Status);
         Assert.IsNull(hero.Weapon);
         Assert.IsNull(hero.Hat);
         Assert.IsEmpty(hero.Traits);

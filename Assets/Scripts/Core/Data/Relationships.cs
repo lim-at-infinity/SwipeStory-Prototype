@@ -9,10 +9,11 @@ public enum RelationshipTier
     Devoted = 3
 }
 
-// Stored on the hero; only changed by relationship events (asking out, breakups)
+// Stored on each RelationshipData (one per pair of heroes); only changed by relationship events (asking out, breakups, deaths)
 public enum RelationshipStatus
 {
     None = 0,
     Dating = 1,
-    Ex = 2
+    Ex = 2,
+    Widowed = 3
 }

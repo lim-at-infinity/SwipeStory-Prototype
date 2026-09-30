@@ -66,8 +66,6 @@ All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeSt
 | `Attack` | int | Base stat |
 | `Defense` | int | Base stat |
 | `Speed` | int | Decides battle turn order |
-| `Affinity` | int | 0 to 100 toward the player, starts at 0. Change only through `RelationshipSystem`. Unused on the player hero |
-| `Status` | RelationshipStatus | None, Dating or Ex, toward the player |
 | `Weapon` | ItemData | null if none. Sword, Dagger, Staff or Cross (class locked) |
 | `Hat` | ItemData | null if none. Any class |
 | `Traits` | IReadOnlyList\<TraitData\> | Added with `AddTrait` |
@@ -77,7 +75,7 @@ All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeSt
 - `ItemData GetEquipped(EquipSlot slot)`, `void SetEquipped(EquipSlot slot, ItemData item)`: throws if the item doesn't fit that slot. Does not check class locks; use `Inventory.UseOn` for that
 - `void AddTrait(TraitData trait)`, `bool HasTrait(TraitData trait)`
 
-Base stats never include equipment or tier bonuses; battle adds those.
+Base stats never include equipment or tier bonuses; battle adds those. Affinity and relationship status are **not** on HeroData: they belong to a pair of heroes and live in `RelationshipSystem` (see RelationshipData below).
 
 ### ItemData (ScriptableObject, `Assets/Data/Items/`)
 
@@ -150,6 +148,14 @@ Carries one adventure from AdventureSelect through Battle to Rewards, plus the r
 
 Battle loop: while `HasMoreEncounters`, fight `Adventure.Encounters[CurrentEncounterIndex]`, `RecordBattle`, stop on a loss or player hero death; then `Finish(new AdventureResult(...))` and show Rewards.
 
+### RelationshipData (plain class) and RelationshipGraph
+
+One **mutual** relationship per pair of heroes, the player hero included: `HeroAId`, `HeroBId`, `Affinity` (0 to 100), `Status` (RelationshipStatus). Helpers: `bool Involves(string heroId)`, `string GetOtherId(string heroId)`.
+
+`RelationshipGraph` stores them. A missing record means affinity 0 and no status; records are created on first contact, and (A, B) and (B, A) are the same record. Methods: `Get`, `GetOrCreate`, `GetAffinity`, `GetStatus`, `GetRelationshipsOf`, `CountWithStatus`, `HandleDeath`, `Clear`. Screens don't use the graph directly; they go through `RelationshipSystem`.
+
+The prototype only uses player-to-NPC pairs. NPC-to-NPC affinity (battle and interaction events) comes later, with no data change needed.
+
 ### Small helpers
 
 - **IntRange** (serializable struct): `Min`, `Max`, `int Roll(System.Random rng)` (both ends included), `int Clamp(int value)`
@@ -163,7 +169,7 @@ Battle loop: while `HasMoreEncounters`, fight `Adventure.Encounters[CurrentEncou
 - `ItemType`: Hat = 0, Sword = 1, Dagger = 2, Staff = 3, Cross = 4, Potion = 5, Gift = 6
 - `EquipSlot`: None = 0, Weapon = 1, Hat = 2
 - `RelationshipTier`: Stranger = 0 (affinity 0 to 24), Friend = 1 (25 to 49), Close = 2 (50 to 74), Devoted = 3 (75 to 100). Always calculated from affinity, never stored
-- `RelationshipStatus`: None = 0, Dating = 1, Ex = 2
+- `RelationshipStatus`: None = 0, Dating = 1, Ex = 2, Widowed = 3. Stored per pair on RelationshipData
 - `ScreenId`: see the screen table above
 
 **Class locks:**
@@ -203,8 +209,10 @@ Managers are singletons on one `Managers` GameObject in the scene, reached throu
 - `HeroData PlayerHero { get; }`
 - `int Capacity`: includes the player hero; 0 = unlimited. `bool IsFull`: always false when unlimited
 - `bool TryAddHero(HeroData hero)`: false if full, null, already in the roster, or a second player hero
-- `void RemoveHero(HeroData hero)`: ignored for the player hero
-- `HeroData GetById(string id)`
+- `void RemoveHero(HeroData hero)`: ignored for the player hero. For non-death removals; deaths use `MarkFallen`
+- `void MarkFallen(HeroData hero)`: NPC death. Moves the hero from `Heroes` to `FallenHeroes`, fires OnHeroFell and OnRosterChanged. Their equipped items are lost with them. Ignored for the player hero (their death is `GameManager.EndRun(false)`)
+- `IReadOnlyList<HeroData> FallenHeroes`: NPC heroes who died this run, oldest first; cleared by `NewGame`
+- `HeroData GetById(string id)`: living heroes only. `HeroData GetFallenById(string id)`: fallen heroes (e.g. to show a Widowed partner's name)
 - `void NotifyHeroUpdated(HeroData hero)`: call after changing any hero field; fires OnHeroUpdated
 
 ### HeroGenerator
@@ -236,9 +244,21 @@ Managers are singletons on one `Managers` GameObject in the scene, reached throu
 
 ### RelationshipSystem
 
-- `void AddAffinity(HeroData hero, int amount)`: clamps 0 to 100, fires OnAffinityChanged (and OnTierChanged when the tier changes). Ignored for the player hero
-- `RelationshipTier GetTier(HeroData hero)`
-- `int GetStatBonus(HeroData hero)`: flat battle bonus for the hero's tier
+Owns every relationship (a `RelationshipGraph`) and is the only place that changes affinity or status. **Every method comes in two forms: with one hero, it means "with the player hero"** (all the prototype needs), and with two heroes, it's between any pair.
+
+| With the player hero | Between two heroes | Notes |
+| --- | --- | --- |
+| `int GetAffinity(hero)` | `GetAffinity(hero, other)` | 0 if they've never interacted |
+| `RelationshipStatus GetStatus(hero)` | `GetStatus(hero, other)` | |
+| `RelationshipTier GetTier(hero)` | `GetTier(hero, other)` | Calculated from affinity |
+| `void AddAffinity(hero, amount)` | `AddAffinity(hero, other, amount)` | Clamps 0 to 100. Fires OnAffinityChanged, OnTierChanged when the tier changes. A Dating pair falling below 40 becomes Ex (fires OnStatusChanged) |
+| `bool CanAskOut(hero)` | `CanAskOut(hero, other)` | Affinity above 60, no status yet (Ex and Widowed can't restart for now), both under their dating cap |
+| `bool TryStartDating(hero)` | `TryStartDating(hero, other)` | Sets Dating if `CanAskOut`; fires OnStatusChanged |
+
+- `int GetStatBonus(HeroData hero)`: flat battle bonus from the hero's tier with the player; 0 for the player hero
+- `int GetDatingCap(HeroData hero)`: `DefaultDatingCap` (1), or the highest `DatingCapOverride` among the hero's traits
+- `IReadOnlyList<RelationshipData> Relationships`, `GetRelationshipsOf(HeroData hero)`: for UI that shows the relationship web
+- Deaths are automatic: it listens to `RosterManager.OnHeroFell`, and the fallen hero's Dating partners become Widowed
 
 ### DialogueScreen
 
@@ -286,10 +306,12 @@ All events are C# `event System.Action<...>` on the owning class. Listeners subs
 | `OnRunEnded` | GameManager | bool won | Screens that need to react to a run ending (e.g. go to Summary) |
 | `OnNewGame` | GameManager | none | All screens (reset their views), ScreenManager (reset AdventureContext) |
 | `OnRosterChanged` | RosterManager | none | Roster, AdventureSelect, HUD, Town |
+| `OnHeroFell` | RosterManager | HeroData | Relationships (Dating becomes Widowed), Summary, any UI showing the fallen |
 | `OnHeroUpdated` | RosterManager | HeroData | Inspection, Roster (stats, level, equipment, affinity changed) |
 | `OnInventoryChanged` | Inventory | none | Shop, Inspection |
-| `OnAffinityChanged` | RelationshipSystem | HeroData, int newAffinity | Inspection affinity meter, Dialogue |
-| `OnTierChanged` | RelationshipSystem | HeroData, RelationshipTier | Dialogue (tier-up message) |
+| `OnAffinityChanged` | RelationshipSystem | HeroData hero, HeroData other, int newAffinity | Inspection affinity meter, Dialogue |
+| `OnTierChanged` | RelationshipSystem | HeroData hero, HeroData other, RelationshipTier | Dialogue (tier-up message) |
+| `OnStatusChanged` | RelationshipSystem | HeroData hero, HeroData other, RelationshipStatus | Dialogue (dating events), Inspection, relationship web |
 | `OnScreenChanged` | ScreenManager | ScreenId from, ScreenId to | HUD (hide/show), screens (refresh on open) |
 | `OnPhaseChanged` | DayCycle | int day, bool isNight | HUD day label, Town |
 | `OnDialogueFinished` | DialogueScreen | HeroData | Town (refresh talk buttons) |
@@ -305,14 +327,14 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | Recruitment Swipe (night) | UndoTokens, `RosterManager.IsFull`, `Config.RecruitCardsPerNight` | `HeroGenerator.Generate`, `TryAddHero`, `TryUseUndoToken`, `DayCycle.StartNextDay` | OnUndoTokensChanged | New HeroData in roster |
 | Roster | `RosterManager.Heroes` | Sets `ScreenManager.SelectedHero`, `Show(Inspection)` | OnRosterChanged, OnHeroUpdated | Selected hero |
 | Hero Inspection | `SelectedHero`, `RelationshipSystem.GetTier`, `Inventory.Items`, `ItemData.CanBeEquippedBy` | `Inventory.UseOn` | OnHeroUpdated, OnAffinityChanged, OnInventoryChanged | Equip entry point |
-| Affinity meter (prefab) | `HeroData.Affinity`, `GetTier`, `Status` | none | OnAffinityChanged | Reusable meter for Inspection and Dialogue |
-| Dialogue (VN) | HeroData (Name, Class, Affinity, Status) | `RelationshipSystem.AddAffinity` (`Config.AffinityPerTalk`), `DayCycle.EndDay` | OnTierChanged | OnDialogueFinished |
-| Relationship system | `HeroData.Affinity`, BalanceConfig | `RosterManager.NotifyHeroUpdated` | none | Tiers, battle stat bonus |
+| Affinity meter (prefab) | `RelationshipSystem.GetAffinity(hero)`, `GetTier(hero)`, `GetStatus(hero)` | none | OnAffinityChanged, OnStatusChanged | Reusable meter for Inspection and Dialogue |
+| Dialogue (VN) | HeroData (Name, Class), `RelationshipSystem.GetAffinity(hero)`, `GetStatus(hero)`, `CanAskOut(hero)` | `RelationshipSystem.AddAffinity(hero, Config.AffinityPerTalk)`, `TryStartDating(hero)`, `DayCycle.EndDay` | OnTierChanged, OnStatusChanged | OnDialogueFinished |
+| Relationship system | RelationshipGraph, BalanceConfig, hero traits | `RosterManager.NotifyHeroUpdated` | RosterManager.OnHeroFell | Affinity, tiers, dating, battle stat bonus |
 | Shop | Gold, `Config.ShopItems` | `TrySpendGold`, `Inventory.Add` | OnGoldChanged, OnInventoryChanged | Items in inventory |
 | Adventure Select | `Config.Adventures`, `IsUnlocked`, `IsCleared`, `RosterManager.Heroes`, `Config.PartySize` (player hero always included) | `AdventureContext.Begin`, `ScreenManager.Show(Battle)` | OnRosterChanged, OnAdventuresChanged | Party + AdventureData in AdventureContext |
 | Battle | `AdventureContext` (Party, Adventure and its Encounters), `RelationshipSystem.GetStatBonus`, equipped items | `AdventureContext.RecordBattle` (each fight), `AdventureContext.Finish`, `GameManager.EndRun(false)` if the player hero dies | none | BattleResult per fight, AdventureResult |
-| Rewards | `AdventureContext.LastResult` (an AdventureResult) | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `RemoveHero` (fallen), `CompleteAdventure(adventure)` if won, then `Show(Summary)` if `IsRunOver`, else `DayCycle.EndDay` | none | Updated heroes, gold, items |
-| Summary | Roster, Gold, `RunWon`, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
+| Rewards | `AdventureContext.LastResult` (an AdventureResult) | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `MarkFallen` (each hero in `Fallen`), `CompleteAdventure(adventure)` if won, then `Show(Summary)` if `IsRunOver`, else `DayCycle.EndDay` | none | Updated heroes, gold, items |
+| Summary | Roster, `FallenHeroes`, Gold, `RunWon`, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
 
 **Hand-offs between screens:** Roster to Inspection, and Town to Dialogue, pass the hero through `ScreenManager.SelectedHero`. Adventure Select to Battle to Rewards pass the party, adventure and result through `ScreenManager.Adventure` (an `AdventureContext`).
 
@@ -324,7 +346,7 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | RosterManager | Real (capacity 50, set in BalanceConfig) |
 | HeroGenerator | Real (random class and name, stats from BalanceConfig at the player's level) |
 | Inventory | Real (equip with class locks, potions, gifts) |
-| RelationshipSystem | `AddAffinity`, `GetTier`, `GetStatBonus` real. Trait effects, dating, breakups not yet |
+| RelationshipSystem | Real: affinity, tiers, asking out, dating caps (with trait overrides), breakups to Ex, Widowed on death. Not yet: Charmer's affinity multiplier, Ex party debuffs, NPC-to-NPC affinity sources |
 | ScreenManager | Real: enables one panel, disables the rest; SelectedHero and AdventureContext not added yet |
 | DayCycle | Real |
 | Town | Talk buttons hidden on day 1, shown from day 2 (until it picks up to `TalkCandidatesPerDay` random NPC heroes) |
@@ -334,7 +356,7 @@ This is what each screen or feature reads, calls and listens to. If something yo
 
 **DebugSeed** (component on the Managers object, only runs in the Editor):
 
-- On Play, after `NewGame` has created the player hero, adds one NPC per relationship tier: Warrior (affinity 0), Mage (30), Rogue (65, can be asked out), Healer (90). Editable in the Inspector
+- On Play, after `NewGame` has created the player hero, adds one NPC per relationship tier, with that affinity toward the player hero (set through `RelationshipSystem.AddAffinity`): Warrior (0), Mage (30), Rogue (65, can be asked out), Healer (90). Editable in the Inspector
 - Adds any item assets dragged into its list (e.g. one of each ItemType)
 - Skip-to-screen toggle: added once screen-manager is merged, since `ScreenId` isn't on Core-Data yet
 

@@ -48,12 +48,15 @@ public class DebugSeed : MonoBehaviour
         foreach (SeedHero seed in _heroes)
         {
             HeroData hero = HeroFactory.Create(config, rng, "Test " + seed.Class, seed.Class, 1);
-            hero.Affinity = Mathf.Clamp(seed.Affinity, 0, BalanceConfig.MaxAffinity);
 
             if (!RosterManager.Instance.TryAddHero(hero))
             {
                 Debug.LogWarning("[DebugSeed] Roster full, skipped " + hero.Name + ".");
+                continue;
             }
+
+            // Affinity with the player hero; starts at 0, so adding sets it
+            RelationshipSystem.Instance.AddAffinity(hero, seed.Affinity);
         }
 
         foreach (ItemData item in _items)
