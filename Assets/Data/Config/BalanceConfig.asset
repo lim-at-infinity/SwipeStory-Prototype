@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be0ea7dd7f0b31e4486c702852cfa1af, type: 3}
+  m_Name: BalanceConfig
+  m_EditorClassIdentifier: SwipeStory.Data::BalanceConfig
+  _startingGold: 100
+  _startingUndoTokens: 1
+  _adventuresPerRun: 3
+  _defaultPlayerName: Hero
+  _defaultPlayerClass: 0
+  _rosterCapacity: 6
+  _partySize: 3
+  _recruitCardsPerNight: 5
+  _talkCandidatesPerDay: 2
+  _classStats:
+  - <Class>k__BackingField: 0
+    <MaxHp>k__BackingField:
+      <Min>k__BackingField: 30
+      <Max>k__BackingField: 36
+    <Attack>k__BackingField:
+      <Min>k__BackingField: 6
+      <Max>k__BackingField: 8
+    <Defense>k__BackingField:
+      <Min>k__BackingField: 5
+      <Max>k__BackingField: 7
+    <Speed>k__BackingField:
+      <Min>k__BackingField: 3
+      <Max>k__BackingField: 5
+    <MaxHpPerLevel>k__BackingField: 5
+    <AttackPerLevel>k__BackingField: 2
+    <DefensePerLevel>k__BackingField: 2
+    <SpeedPerLevel>k__BackingField: 1
+  - <Class>k__BackingField: 1
+    <MaxHp>k__BackingField:
+      <Min>k__BackingField: 18
+      <Max>k__BackingField: 22
+    <Attack>k__BackingField:
+      <Min>k__BackingField: 9
+      <Max>k__BackingField: 11
+    <Defense>k__BackingField:
+      <Min>k__BackingField: 2
+      <Max>k__BackingField: 3
+    <Speed>k__BackingField:
+      <Min>k__BackingField: 4
+      <Max>k__BackingField: 6
+    <MaxHpPerLevel>k__BackingField: 3
+    <AttackPerLevel>k__BackingField: 3
+    <DefensePerLevel>k__BackingField: 1
+    <SpeedPerLevel>k__BackingField: 1
+  - <Class>k__BackingField: 2
+    <MaxHp>k__BackingField:
+      <Min>k__BackingField: 22
+      <Max>k__BackingField: 26
+    <Attack>k__BackingField:
+      <Min>k__BackingField: 7
+      <Max>k__BackingField: 9
+    <Defense>k__BackingField:
+      <Min>k__BackingField: 3
+      <Max>k__BackingField: 4
+    <Speed>k__BackingField:
+      <Min>k__BackingField: 7
+      <Max>k__BackingField: 9
+    <MaxHpPerLevel>k__BackingField: 4
+    <AttackPerLevel>k__BackingField: 2
+    <DefensePerLevel>k__BackingField: 1
+    <SpeedPerLevel>k__BackingField: 2
+  - <Class>k__BackingField: 3
+    <MaxHp>k__BackingField:
+      <Min>k__BackingField: 20
+      <Max>k__BackingField: 24
+    <Attack>k__BackingField:
+      <Min>k__BackingField: 3
+      <Max>k__BackingField: 5
+    <Defense>k__BackingField:
+      <Min>k__BackingField: 4
+      <Max>k__BackingField: 5
+    <Speed>k__BackingField:
+      <Min>k__BackingField: 4
+      <Max>k__BackingField: 6
+    <MaxHpPerLevel>k__BackingField: 4
+    <AttackPerLevel>k__BackingField: 1
+    <DefensePerLevel>k__BackingField: 2
+    <SpeedPerLevel>k__BackingField: 1
+  _maxLevel: 10
+  _xpToNextLevel: 0a0000000f000000160000001e0000002800000034000000420000005200000064000000
+  _tierThresholds: 0000000019000000320000004b000000
+  _tierStatBonus: 00000000010000000200000004000000
+  _affinityPerTalk: 5
+  _affinityPerBattle: 3
+  _askOutAffinityThreshold: 60
+  _breakupAffinityThreshold: 40
+  _defaultDatingCap: 1
+  _traitCardsPerLevelUp: 6
+  _traitPool: []
+  _goldRewardMultiplier: 1
+  _xpRewardMultiplier: 1
+  _shopItems: []
