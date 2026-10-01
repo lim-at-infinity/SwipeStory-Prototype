@@ -8,6 +8,7 @@ public class TownScreen : ScreenBase
 
     private void OnEnable()
     {
+        // Debug.Log("Roster: " + RosterManager.Instance.Heroes.Count + " heroes, player = " + RosterManager.Instance.PlayerHero.Name);
         _talkButtons.SetActive(HasHeroesToTalkTo());
     }
 
