@@ -17,6 +17,31 @@ public class ScreenManager : MonoBehaviour
 
     public ScreenId Current { get; private set; } = ScreenId.None;
 
+    public HeroData SelectedHero { get; set; }
+    public AdventureContext Adventure { get; } = new AdventureContext();
+
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnNewGame += HandleNewGame;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnNewGame -= HandleNewGame;
+        }
+    }
+
+    private void HandleNewGame()
+    {
+        SelectedHero = null;
+        Adventure.Reset();
+    }
+
     private void Awake()
     {
         Instance = this;
