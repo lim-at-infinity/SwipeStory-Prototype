@@ -64,9 +64,10 @@ public class InnScreen : ScreenBase
     private void Refresh()
     {
         _undoTokensText.text = "Undo's Left: " + GameManager.Instance.UndoTokens;
-        _recruitButton.interactable = !DrawnToday;
-        _recruitLabel.text = DrawnToday ? "Recruited today" : "Recruit";
-
+        bool canRecruit = DayCycle.Instance.IsNight && !DrawnToday;
+        _recruitButton.interactable = canRecruit;
+        _recruitLabel.text = !DayCycle.Instance.IsNight ? "Opens at night" : DrawnToday ? "Recruited tonight" : "Recruit";
+        
         if (_sleepButton != null)
         {
             _sleepButton.SetActive(DayCycle.Instance.IsNight);
