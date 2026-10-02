@@ -14,7 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: SwipeStory.Data::BalanceConfig
   _startingGold: 100
   _startingUndoTokens: 1
-  _adventuresPerRun: 3
+  _adventures:
+  - {fileID: 11400000, guid: 49dac9dd295eaf345a84c26b96d8a137, type: 2}
+  - {fileID: 11400000, guid: 4ee46cb123556d0438edf550f04562a9, type: 2}
+  - {fileID: 11400000, guid: c059fcb8b2474bf43ae96f169c1134cf, type: 2}
   _defaultPlayerName: Hero
   _defaultPlayerClass: 0
   _rosterCapacity: 6
@@ -92,6 +95,8 @@ MonoBehaviour:
     <SpeedPerLevel>k__BackingField: 1
   _maxLevel: 10
   _xpToNextLevel: 0a0000000f000000160000001e0000002800000034000000420000005200000064000000
+  _heroColorSaturation: 0.6
+  _heroColorValue: 0.9
   _tierThresholds: 0000000019000000320000004b000000
   _tierStatBonus: 00000000010000000200000004000000
   _affinityPerTalk: 5
