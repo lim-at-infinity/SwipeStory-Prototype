@@ -14,18 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: SwipeStory.Data::ClassVisuals
   _visuals:
   - <Class>k__BackingField: 0
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: 7482667652216324306, guid: 861695eab0546704982dd2d0c42c28a5, type: 3}
     <Portrait>k__BackingField: {fileID: 0}
-    <Color>k__BackingField: {r: 0.85, g: 0.3, b: 0.3, a: 1}
   - <Class>k__BackingField: 1
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: 7482667652216324306, guid: e0b67c92048a03a41882e10230528e36, type: 3}
     <Portrait>k__BackingField: {fileID: 0}
-    <Color>k__BackingField: {r: 0.3, g: 0.5, b: 0.9, a: 1}
   - <Class>k__BackingField: 2
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -9095717837082945937, guid: 2698deef30dacbf4d828bed364a451bb, type: 3}
     <Portrait>k__BackingField: {fileID: 0}
-    <Color>k__BackingField: {r: 0.3, g: 0.75, b: 0.4, a: 1}
   - <Class>k__BackingField: 3
-    <Sprite>k__BackingField: {fileID: 0}
+    <Sprite>k__BackingField: {fileID: -2413806693520163455, guid: a3d01a65337cbfe44a1493587e0332a0, type: 3}
     <Portrait>k__BackingField: {fileID: 0}
-    <Color>k__BackingField: {r: 0.95, g: 0.85, b: 0.3, a: 1}
