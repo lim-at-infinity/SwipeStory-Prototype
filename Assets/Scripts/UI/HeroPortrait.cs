@@ -14,10 +14,12 @@ public class HeroPortrait : MonoBehaviour
     // Null hides the image
     public void Show(HeroData hero)
     {
-        // Fetched here, not in Awake: Show can be called on a portrait that hasn't been active yet
+        // Fetched here instead of Awake so Show can be called on a portrait that hasn't been active yet
         if (_image == null)
         {
             _image = GetComponent<Image>();
+            // Set preserveAspect here, not in the Inspector, since the checkbox is hidden while the Image has no sprite, and sprites are set at runtime
+            _image.preserveAspect = true;
         }
 
         if (hero == null)
