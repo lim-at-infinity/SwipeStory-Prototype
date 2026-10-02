@@ -13,6 +13,14 @@ public class DayCycle : MonoBehaviour
 
     public string PhaseLabel => "Day " + Day + (IsNight ? " · Night" : " · Daytime");
 
+    // Recruiting happens once per night. Cleared when the next day starts or a new run begins
+    public bool RecruitedTonight { get; private set; }
+
+    public void MarkRecruited()
+    {
+        RecruitedTonight = true;
+    }
+
     private void Awake()
     {
         Instance = this;
@@ -39,6 +47,7 @@ public class DayCycle : MonoBehaviour
     {
         Day = 1;
         IsNight = false;
+        RecruitedTonight = false;
         OnPhaseChanged?.Invoke(Day, IsNight);
     }
 
@@ -68,6 +77,7 @@ public class DayCycle : MonoBehaviour
 
         Day++;
         IsNight = false;
+        RecruitedTonight = false;
         OnPhaseChanged?.Invoke(Day, IsNight);
         ScreenManager.Instance.Show(ScreenId.Town);
     }

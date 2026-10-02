@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 // The Inn (ScreenId.Recruit), reached from Town by day or night. Shows undo tokens, and Recruit opens the
-// card swipe screen with the day's recruit cards (one draw per day). Roster is a plain NavButton and
+// card swipe screen with the day's recruit cards (one draw per night). Roster is a plain NavButton and
 // Sleep is a DayCycleButton (StartNextDay), shown only at night
 public class InnScreen : ScreenBase
 {
@@ -14,10 +14,6 @@ public class InnScreen : ScreenBase
     [SerializeField] private GameObject _sleepButton;
     [Tooltip("The header's Back button. Goes to Town")]
     [SerializeField] private Button _backButton;
-
-    private int _drawnOnDay = -1;
-
-    private bool DrawnToday => _drawnOnDay == DayCycle.Instance.Day;
 
     private void Awake()
     {
@@ -46,12 +42,13 @@ public class InnScreen : ScreenBase
 
     private void StartRecruiting()
     {
-        if (DrawnToday)
+        DayCycle dayCycle = DayCycle.Instance;
+        if (!dayCycle.IsNight || dayCycle.RecruitedTonight)
         {
             return;
         }
 
-        _drawnOnDay = DayCycle.Instance.Day;
+        dayCycle.MarkRecruited();
         RecruitDeck deck = new RecruitDeck(GameManager.Instance.Config.RecruitCardsPerNight);
         CardSwipeScreen.Open(deck, () => ScreenManager.Instance.Show(ScreenId.Recruit));
     }
@@ -64,10 +61,10 @@ public class InnScreen : ScreenBase
     private void Refresh()
     {
         _undoTokensText.text = "Undo's Left: " + GameManager.Instance.UndoTokens;
-        bool canRecruit = DayCycle.Instance.IsNight && !DrawnToday;
-        _recruitButton.interactable = canRecruit;
-        _recruitLabel.text = !DayCycle.Instance.IsNight ? "Opens at night" : DrawnToday ? "Recruited tonight" : "Recruit";
-        
+        DayCycle dayCycle = DayCycle.Instance;
+        _recruitButton.interactable = dayCycle.IsNight && !dayCycle.RecruitedTonight;
+        _recruitLabel.text = !dayCycle.IsNight ? "Opens at night" : dayCycle.RecruitedTonight ? "Recruited tonight" : "Recruit";
+
         if (_sleepButton != null)
         {
             _sleepButton.SetActive(DayCycle.Instance.IsNight);
