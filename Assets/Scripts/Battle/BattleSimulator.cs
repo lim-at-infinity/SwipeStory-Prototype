@@ -17,11 +17,11 @@ public class BattleSimulator
     }
 
     // Returns true if the heroes won. Heroes keep their CurrentHp, so the next fight starts where this one ended
-    public bool Fight(List<BattleUnit> heroes, List<BattleUnit> enemies, List<string> log)
+    public bool Fight(List<BattleUnit> heroes, List<BattleUnit> enemies, List<BattleEvent> log)
     {
         for (int round = 1; round <= MaxRounds; round++)
         {
-            log.Add("Round " + round);
+            log.Add(new BattleEvent("Round " + round));
 
             List<BattleUnit> order = new List<BattleUnit>();
             order.AddRange(heroes);
@@ -46,23 +46,23 @@ public class BattleSimulator
 
                 if (!AnyAlive(enemies))
                 {
-                    log.Add("Victory!");
+                    log.Add(new BattleEvent("Victory!"));
                     return true;
                 }
 
                 if (!AnyAlive(heroes))
                 {
-                    log.Add("Defeat...");
+                    log.Add(new BattleEvent("Defeat..."));
                     return false;
                 }
             }
         }
 
-        log.Add("The fight dragged on too long. Retreat!");
+        log.Add(new BattleEvent("The fight dragged on too long. Retreat!"));
         return false;
     }
 
-    private void HeroTurn(BattleUnit hero, List<BattleUnit> heroes, List<BattleUnit> enemies, List<string> log)
+    private void HeroTurn(BattleUnit hero, List<BattleUnit> heroes, List<BattleUnit> enemies, List<BattleEvent> log)
     {
         if (hero.IsHealer)
         {
@@ -71,7 +71,7 @@ public class BattleSimulator
             {
                 int amount = Math.Min(hero.Attack, hurt.MaxHp - hurt.CurrentHp);
                 hurt.CurrentHp += amount;
-                log.Add(hero.Name + " heals " + hurt.Name + " for " + amount + " (" + hurt.CurrentHp + "/" + hurt.MaxHp + ")");
+                log.Add(new BattleEvent(hero.Name + " heals " + hurt.Name + " for " + amount, hurt, hurt.CurrentHp));
                 return;
             }
         }
@@ -79,13 +79,18 @@ public class BattleSimulator
         Hit(hero, LowestHp(enemies), log);
     }
 
-    private static void Hit(BattleUnit attacker, BattleUnit target, List<string> log)
+    private static void Hit(BattleUnit attacker, BattleUnit target, List<BattleEvent> log)
     {
         int damage = Math.Max(1, attacker.Attack - target.Defense);
         target.CurrentHp = Math.Max(0, target.CurrentHp - damage);
 
-        string result = target.IsAlive ? "(" + target.CurrentHp + "/" + target.MaxHp + ")" : "(" + target.Name + " falls)";
-        log.Add(attacker.Name + " hits " + target.Name + " for " + damage + " " + result);
+        string text = attacker.Name + " hits " + target.Name + " for " + damage;
+        if (!target.IsAlive)
+        {
+            text += ". " + target.Name + " falls!";
+        }
+
+        log.Add(new BattleEvent(text, target, target.CurrentHp));
     }
 
     // Lowest current HP among the living

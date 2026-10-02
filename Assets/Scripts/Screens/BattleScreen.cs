@@ -1,35 +1,49 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
-// Auto battle: fights each encounter of ScreenManager.Adventure in order, records the results, then opens Rewards.
-// For now the fight log goes to the Console; the battle UI comes next
+// Auto battle: fights each encounter of ScreenManager.Adventure in order and plays every fight back line by line,
+// then records the results and opens Rewards. Skip finishes the playback instantly
 public class BattleScreen : ScreenBase
 {
-    [SerializeField] private float _stubSeconds = 1f;
+    [SerializeField] private TMP_Text _titleText;
+    [SerializeField] private TMP_Text _logText;
+    [SerializeField] private Transform _heroList;
+    [SerializeField] private Transform _enemyList;
+    [SerializeField] private BattleUnitRow _rowPrefab;
+    [SerializeField] private Button _skipButton;
+    [SerializeField] private float _secondsPerLine = 0.4f;
+    [SerializeField] private float _pauseBetweenFights = 1f;
+    [SerializeField] private int _visibleLogLines = 8;
 
     private readonly System.Random _rng = new System.Random();
+    private readonly Dictionary<BattleUnit, BattleUnitRow> _rows = new Dictionary<BattleUnit, BattleUnitRow>();
+    private readonly Queue<string> _logLines = new Queue<string>();
+    private bool _skip;
+
+    private void Awake()
+    {
+        _skipButton.onClick.AddListener(() => _skip = true);
+    }
 
     private void OnEnable()
     {
-        RunAdventure();
-        StartCoroutine(GoToRewards());
+        _skip = false;
+        _logLines.Clear();
+        _logText.text = "";
+        StartCoroutine(RunAdventure());
     }
 
-    private IEnumerator GoToRewards()
-    {
-        yield return new WaitForSeconds(_stubSeconds);
-        ScreenManager.Instance.Show(ScreenId.Rewards);
-    }
-
-    private void RunAdventure()
+    private IEnumerator RunAdventure()
     {
         AdventureContext context = ScreenManager.Instance.Adventure;
         AdventureData adventure = context.Adventure;
         if (adventure == null)
         {
             Debug.LogError("[Battle] No adventure. Open Battle from Adventure Select.", this);
-            return;
+            yield break;
         }
 
         BattleSimulator simulator = new BattleSimulator(_rng);
@@ -41,9 +55,19 @@ public class BattleScreen : ScreenBase
             heroes.Add(BattleUnit.FromHero(hero, RelationshipSystem.Instance.GetStatBonus(hero)));
         }
 
+        _rows.Clear();
+        ClearRows(_heroList);
+        foreach (BattleUnit hero in heroes)
+        {
+            AddRow(hero, _heroList);
+        }
+
         while (context.HasMoreEncounters)
         {
-            EncounterData encounter = adventure.Encounters[context.CurrentEncounterIndex];
+            int fightIndex = context.CurrentEncounterIndex;
+            EncounterData encounter = adventure.Encounters[fightIndex];
+            _titleText.text = adventure.DisplayName + "  ·  Fight " + (fightIndex + 1) + "/" + adventure.Encounters.Count
+                + ": " + encounter.Name;
 
             // Number duplicate enemies so the log reads "Slime 1", "Slime 2"
             List<BattleUnit> enemies = new List<BattleUnit>();
@@ -54,10 +78,30 @@ public class BattleScreen : ScreenBase
                 enemies.Add(BattleUnit.FromEnemy(enemy, name));
             }
 
+            ClearRows(_enemyList);
+            foreach (BattleUnit enemy in enemies)
+            {
+                AddRow(enemy, _enemyList);
+            }
+
+            // Simulate the whole fight instantly, then play it back
             List<BattleUnit> aliveBefore = heroes.FindAll(unit => unit.IsAlive);
-            List<string> log = new List<string>();
-            bool won = simulator.Fight(heroes, enemies, log);
-            Debug.Log("[Battle] " + encounter.Name + "\n" + string.Join("\n", log));
+            List<BattleEvent> events = new List<BattleEvent>();
+            bool won = simulator.Fight(heroes, enemies, events);
+
+            foreach (BattleEvent battleEvent in events)
+            {
+                AddLogLine(battleEvent.Text);
+                if (battleEvent.Target != null)
+                {
+                    _rows[battleEvent.Target].SetHp(battleEvent.HpAfter);
+                }
+
+                if (!_skip)
+                {
+                    yield return new WaitForSeconds(_secondsPerLine);
+                }
+            }
 
             // NPC heroes who died in this fight. The player hero's death ends the run instead
             List<HeroData> fallen = new List<HeroData>();
@@ -80,6 +124,11 @@ public class BattleScreen : ScreenBase
             }
 
             context.RecordBattle(new BattleResult(encounter, won, fallen));
+
+            if (!_skip)
+            {
+                yield return new WaitForSeconds(_pauseBetweenFights);
+            }
 
             if (playerDied)
             {
@@ -110,5 +159,35 @@ public class BattleScreen : ScreenBase
 
         Debug.Log("[Battle] " + adventure.DisplayName + (cleared ? " cleared" : " failed")
             + ", gold " + context.LastResult.GoldEarned + ", fallen " + context.LastResult.Fallen.Count);
+
+        ScreenManager.Instance.Show(ScreenId.Rewards);
+    }
+
+    private void AddRow(BattleUnit unit, Transform list)
+    {
+        BattleUnitRow row = Instantiate(_rowPrefab, list);
+        row.Bind(unit);
+        _rows[unit] = row;
+    }
+
+    private static void ClearRows(Transform list)
+    {
+        foreach (Transform child in list)
+        {
+            child.gameObject.SetActive(false);   // leaves the layout now; Destroy only happens at the end of the frame
+            Destroy(child.gameObject);
+        }
+    }
+
+    // Keeps only the last few lines so the log never overflows its box
+    private void AddLogLine(string line)
+    {
+        _logLines.Enqueue(line);
+        while (_logLines.Count > _visibleLogLines)
+        {
+            _logLines.Dequeue();
+        }
+
+        _logText.text = string.Join("\n", _logLines);
     }
 }
