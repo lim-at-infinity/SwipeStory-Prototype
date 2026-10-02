@@ -334,6 +334,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Managers
       objectReference: {fileID: 0}
+    - target: {fileID: 7541089630357076397, guid: de84f2f1020faea4cb2305b1b36f13ef, type: 3}
+      propertyPath: _screenRoot
+      value: 
+      objectReference: {fileID: 1313607507}
+    - target: {fileID: 7541089630357076397, guid: de84f2f1020faea4cb2305b1b36f13ef, type: 3}
+      propertyPath: _startScreen
+      value: 3
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
