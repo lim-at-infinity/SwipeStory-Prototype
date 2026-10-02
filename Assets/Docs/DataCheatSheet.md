@@ -29,7 +29,7 @@ Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Re
 | --- | --- | --- | --- | --- |
 | `None` | 0 | (no screen; initial value of `Current`) | | |
 | `Town` | 1 | Town Hub (game start) | Game start, HUD, `StartNextDay` | Roster, Shop, AdventureSelect, Dialogue (talk, hidden on day 1) |
-| `Recruit` | 2 | Recruitment Swipe (night only) | `EndDay` | Town (via `StartNextDay` after 5 cards) |
+| `Recruit` | 2 | The Inn: night hub (undo tokens, Recruit, Roster, Sleep) | `EndDay` | CardSwipe (Recruit, once per night), Roster, Town (Sleep, via `StartNextDay`) |
 | `Roster` | 3 | Roster (grid + hero detail panel) | Town, HUD | Back |
 | `Inspection` | 4 | Unused: inspection is a panel on Roster. Kept so later values don't shift | | |
 | `Dialogue` | 5 | Visual Novel talk scene | Town (talk buttons) | Recruit (via `EndDay` when finished) |
