@@ -57,7 +57,7 @@ public class DayCycle : MonoBehaviour
         ScreenManager.Instance.Show(ScreenId.Town);
     }
 
-    // Called when the night's recruit cards are used up
+    // Called by the Inn's Sleep button
     public void StartNextDay()
     {
         if (!IsNight)
