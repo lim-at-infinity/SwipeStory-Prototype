@@ -19,6 +19,8 @@ public class TownScreen : ScreenBase
             int index = i; // copy for the lambda
             _talkButtons[i].onClick.AddListener(() => TalkTo(index));
         }
+        
+        GameManager.Instance.OnNewGame += HandleNewGame;
     }
 
     private void OnEnable()
@@ -30,6 +32,20 @@ public class TownScreen : ScreenBase
         }
 
         RefreshButtons();
+    }
+
+    private void OnDestroy()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnNewGame -= HandleNewGame;
+        }
+    }
+
+    // A new run has a new roster, so today's candidates must be picked again
+    private void HandleNewGame()
+    {
+        _candidatesDay = -1;
     }
 
     private void PickCandidates()
