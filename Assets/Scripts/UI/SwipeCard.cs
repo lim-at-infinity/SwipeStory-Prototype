@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -25,6 +26,14 @@ public class SwipeCard : MonoBehaviour, IDragHandler, IEndDragHandler
     [Tooltip("How far the card travels when it flies off")]
     [SerializeField] private float _flyOffDistance = 1500f;
     [SerializeField, Min(0.01f)] private float _animationSeconds = 0.2f;
+
+    [Header("Drag hints (optional)")]
+    [Tooltip("Fades in as the card is dragged left, e.g. Reject")]
+    [SerializeField] private TMP_Text _leftHint;
+    [Tooltip("Fades in as the card is dragged right, e.g. Pick")]
+    [SerializeField] private TMP_Text _rightHint;
+    [Tooltip("Fades in as the card is dragged up, e.g. Inspect")]
+    [SerializeField] private TMP_Text _upHint;
 
     public event Action<SwipeDirection> OnSwiped;
 
@@ -86,6 +95,15 @@ public class SwipeCard : MonoBehaviour, IDragHandler, IEndDragHandler
         _animating = false;
         _rect.anchoredPosition = _restPosition;
         _rect.localRotation = Quaternion.identity;
+        UpdateHints();
+    }
+
+    // The words that fade in while dragging. Null hides that hint (e.g. no Inspect for item cards)
+    public void SetHints(string left, string right, string up)
+    {
+        SetHintText(_leftHint, left);
+        SetHintText(_rightHint, right);
+        SetHintText(_upHint, up);
     }
 
     // Slides back to the middle, e.g. after a swipe that isn't allowed or an inspect
@@ -126,6 +144,37 @@ public class SwipeCard : MonoBehaviour, IDragHandler, IEndDragHandler
     {
         float sideways = Mathf.Clamp((_rect.anchoredPosition.x - _restPosition.x) / _swipeDistance, -1f, 1f);
         _rect.localRotation = Quaternion.Euler(0f, 0f, -sideways * _maxTilt);
+        UpdateHints();
+    }
+
+    // Each hint is invisible at rest and fully shown at the swipe distance, so the player sees what letting go will do
+    private void UpdateHints()
+    {
+        Vector2 offset = _rect.anchoredPosition - _restPosition;
+        bool mostlyUp = offset.y > Mathf.Abs(offset.x);
+
+        SetHintAlpha(_leftHint, mostlyUp ? 0f : -offset.x / _swipeDistance);
+        SetHintAlpha(_rightHint, mostlyUp ? 0f : offset.x / _swipeDistance);
+        SetHintAlpha(_upHint, mostlyUp ? offset.y / _swipeDistance : 0f);
+    }
+
+    private static void SetHintText(TMP_Text hint, string text)
+    {
+        if (hint == null)
+        {
+            return;
+        }
+
+        hint.gameObject.SetActive(!string.IsNullOrEmpty(text));
+        hint.text = text;
+    }
+
+    private static void SetHintAlpha(TMP_Text hint, float alpha)
+    {
+        if (hint != null)
+        {
+            hint.alpha = Mathf.Clamp01(alpha);
+        }
     }
 
     // Up wins only when the drag is mostly vertical, so a diagonal drag still counts as left or right

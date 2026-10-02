@@ -6,14 +6,24 @@ public abstract class SwipeDeck
 {
     private bool _lastWasPass;
 
-    // The current card. Equal to Count once every card has been decided
+    // The current card. Equal to Count once the deck is finished
     public int Index { get; private set; }
     public abstract int Count { get; }
     public bool IsFinished => Index >= Count;
 
-    // Shown at the top of the swipe screen, and on the accept button
+    // Shown at the top of the swipe screen, on the buttons, and as hints while dragging
     public abstract string Title { get; }
     public abstract string AcceptLabel { get; }
+    public virtual string PassLabel => "Pass";
+
+    // Shown once the deck is finished
+    public virtual string FinishedMessage => "No more cards.";
+
+    // True: accepting one card ends the deck (pick one of several). False: every card gets its own decision
+    public virtual bool FinishOnAccept => false;
+
+    // Whether swiping up shows more about a card
+    public virtual bool CanInspect => false;
 
     // Why the current card can't be accepted right now (e.g. "Roster is full"), or null if it can
     public virtual string BlockedReason => null;
@@ -41,7 +51,7 @@ public abstract class SwipeDeck
 
         Accept(Index);
         _lastWasPass = false;
-        Index++;
+        Index = FinishOnAccept ? Count : Index + 1;
         return true;
     }
 

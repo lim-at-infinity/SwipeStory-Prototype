@@ -20,6 +20,8 @@ public class ItemRewardDeck : SwipeDeck
     public override int Count => _items.Count;
     public override string Title => "Rewards";
     public override string AcceptLabel => "Take";
+    public override string PassLabel => "Leave";
+    public override string FinishedMessage => "All rewards sorted.";
 
     public override void ShowCurrent(SwipeCardView view)
     {

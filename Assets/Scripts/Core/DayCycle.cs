@@ -53,7 +53,8 @@ public class DayCycle : MonoBehaviour
 
         IsNight = true;
         OnPhaseChanged?.Invoke(Day, IsNight);
-        ScreenManager.Instance.Show(ScreenId.Recruit);
+        // Night happens in Town: only the Inn is open, and its Sleep button calls StartNextDay
+        ScreenManager.Instance.Show(ScreenId.Town);
     }
 
     // Called when the night's recruit cards are used up

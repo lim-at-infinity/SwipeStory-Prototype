@@ -21,6 +21,8 @@ public class CardSwipeScreen : ScreenBase
     [SerializeField] private SwipeCardView _cardView;
 
     [SerializeField] private Button _passButton;
+    [Tooltip("Optional. Set to the deck's pass word (Reject, Leave)")]
+    [SerializeField] private TMP_Text _passLabel;
     [SerializeField] private Button _acceptButton;
     [SerializeField] private TMP_Text _acceptLabel;
     [SerializeField] private Button _inspectButton;
@@ -108,7 +110,10 @@ public class CardSwipeScreen : ScreenBase
 
             case SwipeDirection.Up:
                 _card.SnapBack();
-                OpenInspect();
+                if (_deck.CanInspect)
+                {
+                    OpenInspect();
+                }
                 break;
 
             default:
@@ -181,6 +186,11 @@ public class CardSwipeScreen : ScreenBase
 
         _titleText.text = hasDeck ? _deck.Title : "";
         _acceptLabel.text = hasDeck ? _deck.AcceptLabel : "";
+        if (_passLabel != null)
+        {
+            _passLabel.text = hasDeck ? _deck.PassLabel : "";
+        }
+
         _counterText.text = finished ? "" : "Card " + (_deck.Index + 1) + " / " + _deck.Count;
         _undoTokensText.text = "Undo: " + GameManager.Instance.UndoTokens;
 
@@ -188,17 +198,18 @@ public class CardSwipeScreen : ScreenBase
         if (!finished)
         {
             _deck.ShowCurrent(_cardView);
+            _card.SetHints(_deck.PassLabel, _deck.AcceptLabel, _deck.CanInspect ? "Inspect" : null);
         }
 
         _passButton.interactable = !finished;
         _acceptButton.interactable = !finished && _deck.CanAccept;
-        _inspectButton.interactable = !finished;
+        _inspectButton.interactable = !finished && _deck.CanInspect;
         _undoButton.interactable = hasDeck && _deck.CanUndo && GameManager.Instance.UndoTokens > 0;
         _continueButton.gameObject.SetActive(finished);
 
         if (finished)
         {
-            _messageText.text = hasDeck ? "No more cards." : "Nothing to swipe.";
+            _messageText.text = hasDeck ? _deck.FinishedMessage : "Nothing to swipe.";
         }
         else
         {

@@ -664,6 +664,9 @@ MonoBehaviour:
   _talkButtons:
   - {fileID: 6113850983349693094}
   - {fileID: 7249689660309929963}
+  _dayOnly:
+  - {fileID: 9004266560368212262}
+  - {fileID: 4071753569805332768}
 --- !u!1 &8612248553377141972
 GameObject:
   m_ObjectHideFlags: 0
@@ -948,7 +951,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2806892124347210395, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
       propertyPath: m_text
-      value: Roster
+      value: Inn
       objectReference: {fileID: 0}
     - target: {fileID: 3189220127988457667, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
       propertyPath: m_Pivot.x
@@ -1032,15 +1035,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6280976599165812095, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
       propertyPath: m_Name
-      value: RosterButton
+      value: InnButton
       objectReference: {fileID: 0}
     - target: {fileID: 6512400806520403404, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
       propertyPath: _target
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7921567692756869770, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
       propertyPath: m_Name
-      value: Roster Text
+      value: Inn Text
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1270,5 +1273,16 @@ PrefabInstance:
 --- !u!224 &4893484745641061532 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 3189220127988457667, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
+  m_PrefabInstance: {fileID: 8046600734260415583}
+  m_PrefabAsset: {fileID: 0}
+
+--- !u!1 &9004266560368212262 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6280976599165812095, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
+  m_PrefabInstance: {fileID: 3161269973649540185}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &4071753569805332768 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6280976599165812095, guid: e2a55208da3766f4e971cdbdff9d553f, type: 3}
   m_PrefabInstance: {fileID: 8046600734260415583}
   m_PrefabAsset: {fileID: 0}

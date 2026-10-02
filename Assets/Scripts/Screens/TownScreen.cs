@@ -3,11 +3,14 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// Town hub. Adventure, Shop and Roster are plain NavButtons.
-// This script picks today's talk candidates and wires the talk buttons.
+// Town hub. Adventure, Shop and Inn are plain NavButtons.
+// This script picks today's talk candidates, wires the talk buttons, and switches between day and night:
+// at night only the Inn is open (Adventure, Shop and talking are daytime activities)
 public class TownScreen : ScreenBase
 {
     [SerializeField] private Button[] _talkButtons;
+    [Tooltip("Hidden at night, e.g. the Adventure and Shop buttons. Talk buttons are hidden at night as well")]
+    [SerializeField] private GameObject[] _dayOnly;
 
     private readonly List<HeroData> _candidates = new List<HeroData>();
     private int _candidatesDay = -1;
@@ -29,6 +32,27 @@ public class TownScreen : ScreenBase
         {
             PickCandidates();
             _candidatesDay = DayCycle.Instance.Day;
+        }
+
+        DayCycle.Instance.OnPhaseChanged += HandlePhaseChanged;
+        RefreshButtons();
+    }
+
+    private void OnDisable()
+    {
+        if (DayCycle.Instance != null)
+        {
+            DayCycle.Instance.OnPhaseChanged -= HandlePhaseChanged;
+        }
+    }
+
+    // Covers phase changes while Town is already showing (ScreenManager.Show(Town) won't re-run OnEnable then)
+    private void HandlePhaseChanged(int day, bool isNight)
+    {
+        if (_candidatesDay != day)
+        {
+            PickCandidates();
+            _candidatesDay = day;
         }
 
         RefreshButtons();
@@ -72,9 +96,19 @@ public class TownScreen : ScreenBase
 
     private void RefreshButtons()
     {
+        bool isNight = DayCycle.Instance.IsNight;
+
+        foreach (GameObject dayOnly in _dayOnly)
+        {
+            if (dayOnly != null)
+            {
+                dayOnly.SetActive(!isNight);
+            }
+        }
+
         for (int i = 0; i < _talkButtons.Length; i++)
         {
-            bool hasHero = i < _candidates.Count;
+            bool hasHero = !isNight && i < _candidates.Count;
             _talkButtons[i].gameObject.SetActive(hasHero);
 
             if (hasHero)

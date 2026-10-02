@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 
-// Hero cards from the Inn. Accepting adds the hero to the roster.
+// Hero cards from the Inn: pick one hero to join the roster, and the night's recruiting is over.
 // Every hero is rolled up front, so undoing a pass brings back the same hero
 public class RecruitDeck : SwipeDeck
 {
     private readonly List<HeroData> _heroes = new List<HeroData>();
+    private HeroData _picked;
 
     public RecruitDeck(int count)
     {
@@ -17,7 +18,14 @@ public class RecruitDeck : SwipeDeck
     public override int Count => _heroes.Count;
     public override string Title => "Recruit";
     public override string AcceptLabel => "Recruit";
+    public override string PassLabel => "Reject";
+    public override bool FinishOnAccept => true;
+    public override bool CanInspect => true;
     public override string BlockedReason => RosterManager.Instance.IsFull ? "Roster is full" : null;
+
+    public override string FinishedMessage => _picked != null
+        ? _picked.Name + " the " + _picked.Class + " joined your guild!"
+        : "No one joined tonight.";
 
     public override void ShowCurrent(SwipeCardView view)
     {
@@ -32,6 +40,9 @@ public class RecruitDeck : SwipeDeck
 
     protected override void Accept(int index)
     {
-        RosterManager.Instance.TryAddHero(_heroes[index]);
+        if (RosterManager.Instance.TryAddHero(_heroes[index]))
+        {
+            _picked = _heroes[index];
+        }
     }
 }
