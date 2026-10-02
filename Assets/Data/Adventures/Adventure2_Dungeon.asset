@@ -17,12 +17,12 @@ MonoBehaviour:
     _enemies:
     - <Name>k__BackingField: Skeleton
       <MaxHp>k__BackingField: 20
-      <Attack>k__BackingField: 10
+      <Attack>k__BackingField: 9
       <Defense>k__BackingField: 3
       <Speed>k__BackingField: 4
     - <Name>k__BackingField: Skeleton
       <MaxHp>k__BackingField: 20
-      <Attack>k__BackingField: 10
+      <Attack>k__BackingField: 9
       <Defense>k__BackingField: 3
       <Speed>k__BackingField: 4
   - <Name>k__BackingField: Goblins
@@ -46,7 +46,7 @@ MonoBehaviour:
     _enemies:
     - <Name>k__BackingField: Orc
       <MaxHp>k__BackingField: 35
-      <Attack>k__BackingField: 12
+      <Attack>k__BackingField: 11
       <Defense>k__BackingField: 5
       <Speed>k__BackingField: 3
   _itemRewards: []

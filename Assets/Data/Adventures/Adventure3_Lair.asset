@@ -16,9 +16,9 @@ MonoBehaviour:
   - <Name>k__BackingField: Dragon
     _enemies:
     - <Name>k__BackingField: Dragon
-      <MaxHp>k__BackingField: 120
-      <Attack>k__BackingField: 16
-      <Defense>k__BackingField: 6
+      <MaxHp>k__BackingField: 70
+      <Attack>k__BackingField: 13
+      <Defense>k__BackingField: 5
       <Speed>k__BackingField: 5
   _itemRewards: []
   <Id>k__BackingField: lair
