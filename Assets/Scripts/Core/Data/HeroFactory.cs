@@ -27,10 +27,17 @@ public static class HeroFactory
             MaxHp = profile.MaxHp.Roll(rng) + profile.MaxHpPerLevel * levelsGained,
             Attack = profile.Attack.Roll(rng) + profile.AttackPerLevel * levelsGained,
             Defense = profile.Defense.Roll(rng) + profile.DefensePerLevel * levelsGained,
-            Speed = profile.Speed.Roll(rng) + profile.SpeedPerLevel * levelsGained
+            Speed = profile.Speed.Roll(rng) + profile.SpeedPerLevel * levelsGained,
+            Color = RollColor(config, rng)
         };
 
         hero.RestoreFullHp();
         return hero;
+    }
+
+    // Random hue; saturation and brightness come from config so every hero stays readable
+    private static Color RollColor(BalanceConfig config, System.Random rng)
+    {
+        return Color.HSVToRGB((float)rng.NextDouble(), config.HeroColorSaturation, config.HeroColorValue);
     }
 }

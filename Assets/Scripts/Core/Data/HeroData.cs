@@ -15,6 +15,8 @@ public class HeroData
     [field: SerializeField] public string Name { get; set; }
     [field: SerializeField] public HeroClass Class { get; set; }
     [field: SerializeField] public bool IsPlayer { get; set; }
+    // Rolled once by HeroFactory so a hero looks the same on every screen. White until then (default Color is invisible)
+    [field: SerializeField] public Color Color { get; set; } = Color.white;
 
     [field: SerializeField] public int Level { get; set; } = 1;
     [field: SerializeField] public int Xp { get; set; }
