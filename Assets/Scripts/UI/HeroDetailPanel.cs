@@ -104,11 +104,4 @@ public class HeroDetailPanel : MonoBehaviour
 
         return string.Join(", ", names);
     }
-
-    // Test helper until RosterScreen exists: right-click the component header in Play mode. Delete once Roster works
-    [ContextMenu("Show Player Hero")]
-    private void ShowPlayerHero()
-    {
-        Show(RosterManager.Instance.PlayerHero);
-    }
 }

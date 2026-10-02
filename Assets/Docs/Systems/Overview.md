@@ -5,6 +5,7 @@ How the Core-Data pieces fit together. For exact signatures see `DataCheatSheet.
 | Doc | Covers |
 | --- | --- |
 | `Heroes.md` | HeroData, HeroFactory, HeroGenerator, RosterManager (living and fallen) |
+| `Roster.md` | Roster screen, hero detail panel, how heroes are drawn (ClassVisuals, HeroPortrait) |
 | `Items.md` | ItemData, item types and class locks, Inventory |
 | `Relationships.md` | Affinity, tiers, dating, breakups, widows |
 | `Adventures.md` | Adventures, encounters, results, unlocks, how a run ends |
