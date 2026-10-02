@@ -76,6 +76,16 @@ public class HeroFactoryTests
     }
 
     [Test]
+    public void Create_RollsAnOpaqueColorPerHero()
+    {
+        HeroData a = HeroFactory.Create(_config, _rng, "A", HeroClass.Rogue, 1);
+        HeroData b = HeroFactory.Create(_config, _rng, "B", HeroClass.Rogue, 1);
+
+        Assert.AreEqual(1f, a.Color.a, "Not the invisible default color");
+        Assert.AreNotEqual(a.Color, b.Color, "Same class, different colors");
+    }
+
+    [Test]
     public void Create_Player_SetsIsPlayer()
     {
         Assert.IsTrue(HeroFactory.Create(_config, _rng, "Me", HeroClass.Warrior, 1, true).IsPlayer);

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0363a926858c61a4f8a861a6f75688c0, type: 3}
+  m_Name: ClassVisuals
+  m_EditorClassIdentifier: SwipeStory.Data::ClassVisuals
+  _visuals:
+  - <Class>k__BackingField: 0
+    <Sprite>k__BackingField: {fileID: 7482667652216324306, guid: 861695eab0546704982dd2d0c42c28a5, type: 3}
+    <Portrait>k__BackingField: {fileID: 0}
+  - <Class>k__BackingField: 1
+    <Sprite>k__BackingField: {fileID: 7482667652216324306, guid: e0b67c92048a03a41882e10230528e36, type: 3}
+    <Portrait>k__BackingField: {fileID: 0}
+  - <Class>k__BackingField: 2
+    <Sprite>k__BackingField: {fileID: -9095717837082945937, guid: 2698deef30dacbf4d828bed364a451bb, type: 3}
+    <Portrait>k__BackingField: {fileID: 0}
+  - <Class>k__BackingField: 3
+    <Sprite>k__BackingField: {fileID: -2413806693520163455, guid: a3d01a65337cbfe44a1493587e0332a0, type: 3}
+    <Portrait>k__BackingField: {fileID: 0}

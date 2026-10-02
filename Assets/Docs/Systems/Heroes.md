@@ -2,7 +2,7 @@
 
 ## HeroData
 
-One hero's runtime state: identity (`Id`, `Name`, `Class`, `IsPlayer`), `Level` and `Xp`, stats (`MaxHp`, `CurrentHp`, `Attack`, `Defense`, `Speed`), equipment (`Weapon`, `Hat`) and `Traits`.
+One hero's runtime state: identity (`Id`, `Name`, `Class`, `IsPlayer`, `Color`), `Level` and `Xp`, stats (`MaxHp`, `CurrentHp`, `Attack`, `Defense`, `Speed`), equipment (`Weapon`, `Hat`) and `Traits`.
 
 - It's a class, so everything holding a hero (roster, party, selected hero) shares the same object. Change it once, everyone sees it.
 - `Id` is a GUID made in the constructor and never changes. Other systems store Ids, not references, when they need to outlive the hero (relationships, saves).
@@ -10,6 +10,12 @@ One hero's runtime state: identity (`Id`, `Name`, `Class`, `IsPlayer`), `Level` 
 - **Base stats never include bonuses.** Equipment and relationship tier bonuses are added by battle at fight time, so equipping never edits `Attack`.
 - Affinity and relationship status are **not** here. See `Relationships.md`.
 - After changing a hero, call `RosterManager.NotifyHeroUpdated(hero)` so screens refresh.
+
+## How heroes look
+
+- **Shape comes from the class**, set on `ClassVisuals.asset`: Warrior square, Mage triangle, Rogue capsule, Healer circle (placeholder sprites in `Assets/Art/Sprites/Placeholder/`).
+- **Color comes from the hero**: `HeroData.Color`, a random hue rolled once by `HeroFactory`, so two Mages look different but each one looks the same on every screen. Saturation and brightness are in BalanceConfig.
+- Draw a hero with the `HeroPortrait` prefab (`Show(hero)`); it combines the two. `Portrait` art is optional and falls back to the small `Sprite` for now.
 
 ## Making heroes
 
@@ -27,7 +33,8 @@ HeroData hero = new HeroData(name, heroClass, isPlayer)
     MaxHp = profile.MaxHp.Roll(rng) + profile.MaxHpPerLevel * levelsGained,
     Attack = profile.Attack.Roll(rng) + profile.AttackPerLevel * levelsGained,
     Defense = profile.Defense.Roll(rng) + profile.DefensePerLevel * levelsGained,
-    Speed = profile.Speed.Roll(rng) + profile.SpeedPerLevel * levelsGained
+    Speed = profile.Speed.Roll(rng) + profile.SpeedPerLevel * levelsGained,
+    Color = RollColor(config, rng)   // random hue, saturation and brightness from config
 };
 
 hero.RestoreFullHp();   // new heroes start at full HP
@@ -65,6 +72,7 @@ Enum `HeroClass`: Warrior = 0, Mage = 1, Rogue = 2, Healer = 3. Picks a hero's s
 | --- | --- |
 | `Id` | Unique GUID created with the hero. Never changes; other systems use it to refer to the hero. |
 | `Name`, `Class`, `IsPlayer` | Display name, class, and whether this is the player's own hero (one per run). |
+| `Color` | The hero's own tint, rolled once at creation. White until `HeroFactory` sets it. |
 | `Level`, `Xp` | Progress. Level starts at 1; leveling up isn't built yet. |
 | `MaxHp`, `CurrentHp`, `Attack`, `Defense`, `Speed` | Base stats, without equipment or relationship bonuses. |
 | `Weapon`, `Hat` | The equipped item assets, or null when empty. |
@@ -80,7 +88,7 @@ Enum `HeroClass`: Warrior = 0, Mage = 1, Rogue = 2, Healer = 3. Picks a hero's s
 
 | Member | What it does |
 | --- | --- |
-| `Create(config, rng, name, heroClass, level, isPlayer)` | Builds a complete hero: rolls each stat from the class's level 1 range, adds growth for every level above 1, and starts at full HP. Level is clamped to 1..MaxLevel; throws if `config` or `rng` is null. |
+| `Create(config, rng, name, heroClass, level, isPlayer)` | Builds a complete hero: rolls each stat from the class's level 1 range, adds growth for every level above 1, rolls a random color, and starts at full HP. Level is clamped to 1..MaxLevel; throws if `config` or `rng` is null. |
 
 ### HeroGenerator.cs (manager)
 

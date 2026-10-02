@@ -30,8 +30,8 @@ Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Re
 | `None` | 0 | (no screen; initial value of `Current`) | | |
 | `Town` | 1 | Town Hub (game start) | Game start, HUD, `StartNextDay` | Roster, Shop, AdventureSelect, Dialogue (talk, hidden on day 1) |
 | `Recruit` | 2 | Recruitment Swipe (night only) | `EndDay` | Town (via `StartNextDay` after 5 cards) |
-| `Roster` | 3 | Roster | Town, HUD | Inspection, Back |
-| `Inspection` | 4 | Hero Inspection | Roster | Back |
+| `Roster` | 3 | Roster (grid + hero detail panel) | Town, HUD | Back |
+| `Inspection` | 4 | Unused: inspection is a panel on Roster. Kept so later values don't shift | | |
 | `Dialogue` | 5 | Visual Novel talk scene | Town (talk buttons) | Recruit (via `EndDay` when finished) |
 | `Shop` | 6 | Shop | Town, HUD | Back |
 | `AdventureSelect` | 7 | Adventure Selection + party pick | Town, HUD | Battle, Back |
@@ -59,6 +59,7 @@ All types in this section live in `Assets/Scripts/Core/Data/` (assembly `SwipeSt
 | `Name` | string | Display name |
 | `Class` | HeroClass | Picks dialogue, stat profile and which weapons fit |
 | `IsPlayer` | bool | True for the player's own hero; exactly one per run |
+| `Color` | Color | Random hue rolled once by `HeroFactory` (saturation and brightness from BalanceConfig). Tints the hero's class shape everywhere. White by default |
 | `Level` | int | 1 to `BalanceConfig.MaxLevel` (10). Recruits arrive at the player hero's level |
 | `Xp` | int | 0 up to `BalanceConfig.GetXpToNextLevel(Level)` |
 | `MaxHp` | int | Base stat |
@@ -105,6 +106,19 @@ Example: `OldSword.asset` has Type Sword, 1 star, small StatBonus.
 | `DatingCapOverride` | int | 0 = use `BalanceConfig.DefaultDatingCap`. Multi-dating trait (name TBD): 3 |
 
 Effects are data only for now; nothing applies them yet.
+
+### ClassVisuals (ScriptableObject, `Assets/Data/Config/ClassVisuals.asset`)
+
+One `ClassVisual` per `HeroClass`: the class's shape. Color is per hero (`HeroData.Color`), not per class. Placeholder sprites live in `Assets/Art/Sprites/Placeholder/` (square, triangle, capsule, circle); swap in real art on the asset, no code changes.
+
+| Member | Type | Notes |
+| --- | --- | --- |
+| `Class` | HeroClass | |
+| `Sprite` | Sprite | Small token: roster tiles, battle |
+| `Portrait` | Sprite | Large art: recruit cards, dialogue. Optional; the prototype leaves it empty |
+| `PortraitOrSprite` | Sprite | Read-only. `Portrait`, or `Sprite` while there's no portrait. Read this instead of `Portrait` |
+
+- `ClassVisual Get(HeroClass heroClass)`: never throws; warns and returns an empty visual (a white box) if the class is missing
 
 ### AdventureData (ScriptableObject, `Assets/Data/Adventures/`)
 
@@ -276,6 +290,7 @@ All tuning numbers live here, never hardcoded in scripts.
 | Roster and party | `RosterCapacity` 50 (every hero in the Adventurer Guild, including the player; 0 = unlimited), `PartySize` 6 (most heroes sent on one adventure, including the player hero) |
 | Day cycle | `RecruitCardsPerNight` 5, `TalkCandidatesPerDay` 2 |
 | Heroes | `MaxLevel` 10, one `ClassStatProfile` per class, XP table |
+| Hero colors | `HeroColorSaturation` 0.6, `HeroColorValue` 0.9 (every hero gets a random hue at this saturation and brightness) |
 | Relationships | `MaxAffinity` 100 (const), tier thresholds 0 / 25 / 50 / 75, tier stat bonus 0 / 1 / 2 / 4, `AffinityPerTalk` 5, `AffinityPerBattle` 3, `AskOutAffinityThreshold` 60, `BreakupAffinityThreshold` 40, `DefaultDatingCap` 1 |
 | Traits | `TraitCardsPerLevelUp` 6, `TraitPool` |
 | Rewards | `GoldRewardMultiplier`, `XpRewardMultiplier` |
@@ -293,6 +308,9 @@ Reusable components any screen prefab can use.
 - **ScreenBase** (MonoBehaviour): base class for every screen. Set its `Id` (ScreenId) in the Inspector; ScreenManager finds all ScreenBase children of `Canvas/Screens` on Awake. Each screen script derives from it (`TownScreen : ScreenBase`). A screen with no logic can use ScreenBase directly.
 - **NavButton** (requires Button): pick a target `ScreenId` in the Inspector, or tick `Go Back` to call `ScreenManager.Back()`. Use this for plain navigation instead of writing a script.
 - **DayCycleButton** (requires Button): pick `EndDay` or `StartNextDay` in the Inspector.
+- **HeroPortrait** (requires Image; prefab `Prefabs/UI/HeroUI/HeroPortrait`): `void Show(HeroData hero)` draws the hero's class shape from `ClassVisuals`, tinted with `hero.Color`; null hides it. Tick `Use Portrait` for the large art. Use this prefab anywhere a hero is drawn (cards, battle, dialogue) instead of building your own.
+- **HeroDetailPanel** (prefab `Prefabs/UI/HeroUI/Panels/HeroDetailPanel`): read-only view of one hero (portrait, level and class, HP, stats, gear, traits, affinity with the player). `void Show(HeroData hero)`, `void Hide()`, `HeroData Hero { get; }`. Refreshes itself on `OnHeroUpdated`. Works for heroes not in the roster yet (affinity reads 0)
+- **RosterSlot** (requires Button; prefab `Prefabs/UI/HeroUI/RosterSlot`): one roster tile. `void Bind(HeroData hero, Action<HeroData> onClick)`, `void Refresh()`, `void SetSelected(bool selected)`, `HeroData Hero { get; }`
 
 ## Events
 
@@ -307,7 +325,7 @@ All events are C# `event System.Action<...>` on the owning class. Listeners subs
 | `OnNewGame` | GameManager | none | All screens (reset their views), ScreenManager (reset AdventureContext) |
 | `OnRosterChanged` | RosterManager | none | Roster, AdventureSelect, HUD, Town |
 | `OnHeroFell` | RosterManager | HeroData | Relationships (Dating becomes Widowed), Summary, any UI showing the fallen |
-| `OnHeroUpdated` | RosterManager | HeroData | Inspection, Roster (stats, level, equipment, affinity changed) |
+| `OnHeroUpdated` | RosterManager | HeroData | Roster tiles, HeroDetailPanel (stats, level, equipment, affinity changed) |
 | `OnInventoryChanged` | Inventory | none | Shop, Inspection |
 | `OnAffinityChanged` | RelationshipSystem | HeroData hero, HeroData other, int newAffinity | Inspection affinity meter, Dialogue |
 | `OnTierChanged` | RelationshipSystem | HeroData hero, HeroData other, RelationshipTier | Dialogue (tier-up message) |
@@ -325,8 +343,8 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | HUD / UI bar | Gold, UndoTokens, AdventuresCompleted, Day, IsNight | `ScreenManager.Show` (quick nav) | OnGoldChanged, OnUndoTokensChanged, OnAdventuresChanged, OnScreenChanged, OnPhaseChanged | Always-on status display |
 | Town Hub | AdventuresCompleted, `DayCycle.Day`, `RosterManager.Heroes` (talk candidates, not the player hero) | `ScreenManager.Show`, `DialogueScreen.Open` | OnAdventuresChanged, OnPhaseChanged, OnRosterChanged, OnDialogueFinished | Entry point to every daytime feature, talk entry point |
 | Recruitment Swipe (night) | UndoTokens, `RosterManager.IsFull`, `Config.RecruitCardsPerNight` | `HeroGenerator.Generate`, `TryAddHero`, `TryUseUndoToken`, `DayCycle.StartNextDay` | OnUndoTokensChanged | New HeroData in roster |
-| Roster | `RosterManager.Heroes` | Sets `ScreenManager.SelectedHero`, `Show(Inspection)` | OnRosterChanged, OnHeroUpdated | Selected hero |
-| Hero Inspection | `SelectedHero`, `RelationshipSystem.GetTier`, `Inventory.Items`, `ItemData.CanBeEquippedBy` | `Inventory.UseOn` | OnHeroUpdated, OnAffinityChanged, OnInventoryChanged | Equip entry point |
+| Roster | `RosterManager.Heroes`, `PlayerHero`, `GetById` | `HeroDetailPanel.Show` for the clicked tile (player hero by default) | OnRosterChanged, OnHeroUpdated | Nothing yet |
+| Hero detail panel (on Roster; reused by Recruit's swipe-up inspect) | HeroData, `RelationshipSystem.GetAffinity`, `GetTier`, `GetStatus`, `ClassVisuals` | none (read-only for now; equip via `Inventory.UseOn` is planned) | OnHeroUpdated | Reusable hero view |
 | Affinity meter (prefab) | `RelationshipSystem.GetAffinity(hero)`, `GetTier(hero)`, `GetStatus(hero)` | none | OnAffinityChanged, OnStatusChanged | Reusable meter for Inspection and Dialogue |
 | Dialogue (VN) | HeroData (Name, Class), `RelationshipSystem.GetAffinity(hero)`, `GetStatus(hero)`, `CanAskOut(hero)` | `RelationshipSystem.AddAffinity(hero, Config.AffinityPerTalk)`, `TryStartDating(hero)`, `DayCycle.EndDay` | OnTierChanged, OnStatusChanged | OnDialogueFinished |
 | Relationship system | RelationshipGraph, BalanceConfig, hero traits | `RosterManager.NotifyHeroUpdated` | RosterManager.OnHeroFell | Affinity, tiers, dating, battle stat bonus |
@@ -336,7 +354,7 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | Rewards | `AdventureContext.LastResult` (an AdventureResult) | `AddGold`, `AddUndoToken`, `Inventory.Add`, `AddAffinity` (`Config.AffinityPerBattle`), `MarkFallen` (each hero in `Fallen`), `RestoreFullHp` (each survivor), `CompleteAdventure(adventure)` if won, then `Show(Summary)` if `IsRunOver`, else `DayCycle.EndDay` | none | Updated heroes, gold, items |
 | Summary | Roster, `FallenHeroes`, Gold, `RunWon`, `AdventureContext.History` | `GameManager.NewGame`, `ScreenManager.Show(Town)` | none | Restart |
 
-**Hand-offs between screens:** Roster to Inspection, and Town to Dialogue, pass the hero through `ScreenManager.SelectedHero`. Adventure Select to Battle to Rewards pass the party, adventure and result through `ScreenManager.Adventure` (an `AdventureContext`).
+**Hand-offs between screens:** Town to Dialogue passes the hero through `ScreenManager.SelectedHero`. Roster doesn't need it: inspection is a panel on the same screen. Adventure Select to Battle to Rewards pass the party, adventure and result through `ScreenManager.Adventure` (an `AdventureContext`).
 
 ## Stubs and placeholder data
 
@@ -349,6 +367,7 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | RelationshipSystem | Real: affinity, tiers, asking out, dating caps (with trait overrides), breakups to Ex, Widowed on death. Not yet: Charmer's affinity multiplier, Ex party debuffs, NPC-to-NPC affinity sources |
 | ScreenManager | Real: enables one panel, disables the rest; SelectedHero and AdventureContext not added yet |
 | DayCycle | Real |
+| Roster | Real: grid of every living hero plus a read-only detail panel. No equip or dismiss yet |
 | Town | Talk buttons hidden on day 1, shown from day 2 (until it picks up to `TalkCandidatesPerDay` random NPC heroes) |
 | Recruit (`RecruitStubScreen`) | Pass and Recruit both just advance a counter; after 5 cards calls `StartNextDay` |
 | DialogueScreen | Shows one hardcoded line and a Close button |

@@ -44,6 +44,11 @@ public class BalanceConfig : ScriptableObject
     [Tooltip("Entry 0 is XP from level 1 to 2. Needs MaxLevel - 1 entries")]
     [SerializeField] private int[] _xpToNextLevel = { 10, 15, 22, 30, 40, 52, 66, 82, 100 };
 
+    [Header("Hero colors")]
+    [Tooltip("Every hero gets a random hue. These keep the colors from coming out washed out or too dark")]
+    [SerializeField, Range(0f, 1f)] private float _heroColorSaturation = 0.6f;
+    [SerializeField, Range(0f, 1f)] private float _heroColorValue = 0.9f;
+
     [Header("Relationships")]
     [Tooltip("Lowest affinity for Stranger, Friend, Close, Devoted")]
     [SerializeField] private int[] _tierThresholds = { 0, 25, 50, 75 };
@@ -79,6 +84,8 @@ public class BalanceConfig : ScriptableObject
     public int RecruitCardsPerNight => _recruitCardsPerNight;
     public int TalkCandidatesPerDay => _talkCandidatesPerDay;
     public int MaxLevel => _maxLevel;
+    public float HeroColorSaturation => _heroColorSaturation;
+    public float HeroColorValue => _heroColorValue;
     public int AffinityPerTalk => _affinityPerTalk;
     public int AffinityPerBattle => _affinityPerBattle;
     public int AskOutAffinityThreshold => _askOutAffinityThreshold;

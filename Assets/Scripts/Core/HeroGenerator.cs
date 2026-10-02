@@ -10,7 +10,7 @@ public class HeroGenerator : MonoBehaviour
 
     [Tooltip("0 = different heroes every run. Any other value repeats the same sequence")]
     [SerializeField] private int _seed;
-    [SerializeField] private string[] _names = { "Aria", "Bram", "Cora", "Dain", "Elsa", "Finn", "Gwen", "Hale", "Iris", "Jory" };
+    [SerializeField] private string[] _names = { "Brian", "Matt", "Alan", "Daisy", "Dunia", "Moe", "Miguel", "Carlos", "Chen", "Arushai" };
 
     private System.Random _rng;
 
