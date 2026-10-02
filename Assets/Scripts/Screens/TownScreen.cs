@@ -11,6 +11,10 @@ public class TownScreen : ScreenBase
     [SerializeField] private Button[] _talkButtons;
     [Tooltip("Hidden at night, e.g. the Adventure and Shop buttons. Talk buttons are hidden at night as well")]
     [SerializeField] private GameObject[] _dayOnly;
+    [Header("Background")]
+    [SerializeField] private Image _background;
+    [SerializeField] private Color _dayColor = new Color(1f, 1f, 1f, 0.392f);
+    [SerializeField] private Color _nightColor = new Color(0.318f, 0.318f, 0.318f, 0.392f);
 
     private readonly List<HeroData> _candidates = new List<HeroData>();
     private int _candidatesDay = -1;
@@ -97,6 +101,10 @@ public class TownScreen : ScreenBase
     private void RefreshButtons()
     {
         bool isNight = DayCycle.Instance.IsNight;
+        if (_background != null)
+        {
+            _background.color = isNight ? _nightColor : _dayColor;
+        }
 
         foreach (GameObject dayOnly in _dayOnly)
         {

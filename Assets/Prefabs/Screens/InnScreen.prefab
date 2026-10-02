@@ -1072,7 +1072,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.31764707, g: 0.31764707, b: 0.31764707, a: 0.392}
+  m_Color: {r: 0.5, g: 0.2441563, b: 0.035377353, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1414,7 +1414,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5005459305915054281, guid: 116ce8e0b6b192b45ae2e1382fa6ea96, type: 3}
       propertyPath: m_fontSize
-      value: 175.4
+      value: 78.35
       objectReference: {fileID: 0}
     - target: {fileID: 5088621218940867185, guid: 116ce8e0b6b192b45ae2e1382fa6ea96, type: 3}
       propertyPath: m_IsActive
