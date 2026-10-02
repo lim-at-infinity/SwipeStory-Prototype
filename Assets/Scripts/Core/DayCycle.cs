@@ -18,6 +18,30 @@ public class DayCycle : MonoBehaviour
         Instance = this;
     }
 
+    private void OnEnable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnNewGame += HandleNewGame;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnNewGame -= HandleNewGame;
+        }
+    }
+
+    // A new run starts on day 1, in the daytime
+    private void HandleNewGame()
+    {
+        Day = 1;
+        IsNight = false;
+        OnPhaseChanged?.Invoke(Day, IsNight);
+    }
+
     // Called after the day's main activity (Rewards or a conversation)
     public void EndDay()
     {
