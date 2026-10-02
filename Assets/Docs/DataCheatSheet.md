@@ -1,6 +1,6 @@
-# SwipeStory Technical Contract
-
-Sep 25, 2026 · @Brian Lim · Updated Sep 29, 2026 (day cycle, no Main Menu, shared UI pieces; Core-Data: player hero, ScriptableObject items and traits, relationships, no rarity)
+# DataCheatSheet.md
+This is a doc that we used with Claude Code to help plan out the project, advising us on how to design the data structure and what systems/design structures would be useful in implementing features, and also keep track of any ideas that we have for the project. Updates as new features are added or chat is used to ask questions.
+Minimal code is generated.
 
 See also: `DevPractices.md` (how we work) and `Systems/` (how each system works, start with `Systems/Overview.md`).
 
@@ -20,28 +20,30 @@ The game is one Unity scene; each screen is a panel under `Canvas/Screens` (save
 
 **Day cycle:** each day has a Daytime and a Night phase.
 
-- **Daytime:** the player is in Town and can freely browse Roster, Inspection and Shop. Doing **one activity** (an adventure, or talking to a hero) ends the day.
-- **Night:** `DayCycle.EndDay()` opens Recruit. After 5 hero cards, `DayCycle.StartNextDay()` increments the day and returns to Town. Recruiting is free.
+- **Daytime:** the player is in Town and can freely visit the Shop and the Inn (recruiting, roster). Doing **one activity** (an adventure, or talking to a hero) ends the day.
+- **Night:** `DayCycle.EndDay()` returns to Town, where only the Inn is open. The Inn's Sleep button calls `DayCycle.StartNextDay()`, which increments the day and returns to Town.
+- **Recruiting:** one free draw of 5 hero cards per night at the Inn; the player recruits one of them. During the day the Inn only offers Roster and Back.
 
-Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Recruit (night N, 5 cards) > StartNextDay > Town (day N+1) ... > Summary after adventure 3
+Town (day N) > [Adventure Select > Battle > Rewards] or [Dialogue] > EndDay > Town (night N) > Inn > Sleep > Town (day N+1) ... > Summary when the run ends
 
 | ScreenId | Value | Screen | Opens from | Can go to |
 | --- | --- | --- | --- | --- |
 | `None` | 0 | (no screen; initial value of `Current`) | | |
-| `Town` | 1 | Town Hub (game start) | Game start, HUD, `StartNextDay` | Roster, Shop, AdventureSelect, Dialogue (talk, hidden on day 1) |
-| `Recruit` | 2 | The Inn: night hub (undo tokens, Recruit, Roster, Sleep) | `EndDay` | CardSwipe (Recruit, once per night), Roster, Town (Sleep, via `StartNextDay`) |
-| `Roster` | 3 | Roster (grid + hero detail panel) | Town, HUD | Back |
+| `Town` | 1 | Town Hub (game start) | Game start, `EndDay`, `StartNextDay`, Inn's Back | Inn, Shop, AdventureSelect, Dialogue (talk). At night only the Inn |
+| `Recruit` | 2 | The Inn (undo tokens, Recruit, Roster, Back, Sleep at night) | Town | CardSwipe (Recruit, night only, once per night), Roster, Town (Back, or Sleep via `StartNextDay`) |
+| `Roster` | 3 | Roster (grid + hero detail panel) | Inn | Back |
 | `Inspection` | 4 | Unused: inspection is a panel on Roster. Kept so later values don't shift | | |
-| `Dialogue` | 5 | Visual Novel talk scene | Town (talk buttons) | Recruit (via `EndDay` when finished) |
+| `Dialogue` | 5 | Visual Novel talk scene | Town (talk buttons) | Town at night (via `EndDay` when finished) |
 | `Shop` | 6 | Shop | Town, HUD | Back |
 | `AdventureSelect` | 7 | Adventure Selection + party pick | Town, HUD | Battle, Back |
 | `Battle` | 8 | Auto battle | AdventureSelect | Rewards (automatic) |
-| `Rewards` | 9 | Rewards | Battle | Recruit (via `EndDay`), or Summary if the run is over (boss cleared or player hero died) |
-| `Summary` | 10 | End-of-run summary | Rewards | Town (Restart, after `GameManager.NewGame`) |
+| `Rewards` | 9 | Rewards | Battle | Town at night (via `EndDay`), or Summary if the run is over (boss cleared or player hero died) |
+| `Summary` | 10 | End-of-run summary | Rewards | Town (New Run, after `GameManager.NewGame`) |
+| `CardSwipe` | 11 | Card swipe (recruits; item rewards later) | Inn's Recruit button (`CardSwipeScreen.Open`) | Inn (Continue) |
 
-**ScreenId values are fixed numbers** because Unity saves them as ints in scenes and prefabs. Never reorder or renumber; only append new ones at the end. Planned screens (class pick, trait draw, Main Menu) get their values when they are added.
+**ScreenId values are fixed numbers** because Unity saves them as ints in scenes and prefabs. Never reorder or renumber; only append new ones at the end. Planned screens (class pick, trait draw, Main Menu) get their values when they are added. `Recruit` is the Inn; the code name is kept to avoid renaming it everywhere.
 
-**Back history:** showing `Town` or `Recruit` clears the Back history, so Back never leaves those screens.
+**Back history:** showing `Town` or `Recruit` (the Inn) clears the Back history, so Back never leaves those screens. The Inn's Back button goes to Town directly.
 
 The **HUD / UI bar** is not a screen: it stays visible on every screen except Battle and Summary.
 
@@ -243,18 +245,18 @@ Managers are singletons on one `Managers` GameObject in the scene, reached throu
 ### ScreenManager
 
 - `ScreenId Current { get; }`: `None` until the start screen (Town) is shown
-- `void Show(ScreenId id)`: showing Town or Recruit clears the Back history
+- `void Show(ScreenId id)`: showing Town or Recruit clears the Back history. Showing the screen already open does nothing
 - `void Back()`: returns to the previous screen
-- *Planned, added on screen-manager now that the data types exist:*
-  - `HeroData SelectedHero { get; set; }`: the hero passed between Roster and Inspection, and from Town's talk buttons into Dialogue
-  - `AdventureContext Adventure { get; }`: created once; `Reset()` it on `GameManager.OnNewGame`
+- `HeroData SelectedHero { get; set; }`: the hero passed from Town's talk buttons into Dialogue
+- `AdventureContext Adventure { get; }`: created once; reset on `GameManager.OnNewGame`
 
 ### DayCycle
 
 - `int Day { get; }`: starts at 1
 - `bool IsNight { get; }`
-- `void EndDay()`: call after the day's one activity (Rewards or a finished conversation); switches to night and shows Recruit. Ignored at night
-- `void StartNextDay()`: call when the night's recruit cards are used up; increments Day and shows Town. Ignored during the day
+- `void EndDay()`: call after the day's one activity (Rewards or a finished conversation); switches to night and shows Town. Ignored at night
+- `void StartNextDay()`: called by the Inn's Sleep button; increments Day and shows Town. Ignored during the day
+- Resets to day 1, daytime on `GameManager.OnNewGame`
 
 ### RelationshipSystem
 
@@ -308,9 +310,14 @@ Reusable components any screen prefab can use.
 - **ScreenBase** (MonoBehaviour): base class for every screen. Set its `Id` (ScreenId) in the Inspector; ScreenManager finds all ScreenBase children of `Canvas/Screens` on Awake. Each screen script derives from it (`TownScreen : ScreenBase`). A screen with no logic can use ScreenBase directly.
 - **NavButton** (requires Button): pick a target `ScreenId` in the Inspector, or tick `Go Back` to call `ScreenManager.Back()`. Use this for plain navigation instead of writing a script.
 - **DayCycleButton** (requires Button): pick `EndDay` or `StartNextDay` in the Inspector.
+- **DayLabel** (on a TMP text): shows `DayCycle.PhaseLabel`, updated on `OnPhaseChanged`.
+- **HeaderBar** (prefab `Prefabs/UI/HeaderBar`): a screen's top strip, with the title on the left 55% and a Back button on the right 40%. Set the title text per screen; hide Back where it doesn't apply.
 - **HeroPortrait** (requires Image; prefab `Prefabs/UI/HeroUI/HeroPortrait`): `void Show(HeroData hero)` draws the hero's class shape from `ClassVisuals`, tinted with `hero.Color`; null hides it. Tick `Use Portrait` for the large art. Use this prefab anywhere a hero is drawn (cards, battle, dialogue) instead of building your own.
 - **HeroDetailPanel** (prefab `Prefabs/UI/HeroUI/Panels/HeroDetailPanel`): read-only view of one hero (portrait, level and class, HP, stats, gear, traits, affinity with the player). `void Show(HeroData hero)`, `void Hide()`, `HeroData Hero { get; }`. Refreshes itself on `OnHeroUpdated`. Works for heroes not in the roster yet (affinity reads 0)
 - **RosterSlot** (requires Button; prefab `Prefabs/UI/HeroUI/RosterSlot`): one roster tile. `void Bind(HeroData hero, Action<HeroData> onClick)`, `void Refresh()`, `void SetSelected(bool selected)`, `HeroData Hero { get; }`
+- **SwipeCard** (prefab `Prefabs/UI/Swipe/SwipeCard`): drag-to-swipe card. `event Action<SwipeDirection> OnSwiped`, `SetHints(left, right, up)`, `SnapBack()`, `FlyOff(direction, onDone)`, `ResetCard()`
+- **SwipeCardView** (on the SwipeCard prefab): the card face. `ShowHero(HeroData)`, `ShowItem(ItemData)`
+- **CardSwipeScreen.Open(SwipeDeck deck, Action onFinished)**: runs any deck on the swipe screen. Decks: `RecruitDeck(count)` (pick one hero), `ItemRewardDeck(items)` (take or leave each item). See `Systems/Recruitment.md`
 
 ## Events
 
@@ -319,7 +326,7 @@ All events are C# `event System.Action<...>` on the owning class. Listeners subs
 | Event | Fired by | Payload | Listened to by |
 | --- | --- | --- | --- |
 | `OnGoldChanged` | GameManager | int newGold | HUD, Shop |
-| `OnUndoTokensChanged` | GameManager | int newCount | HUD, Recruit |
+| `OnUndoTokensChanged` | GameManager | int newCount | HUD, Inn, card swipe screen |
 | `OnAdventuresChanged` | GameManager | int completed | HUD, AdventureSelect (refresh locks) |
 | `OnRunEnded` | GameManager | bool won | Screens that need to react to a run ending (e.g. go to Summary) |
 | `OnNewGame` | GameManager | none | All screens (reset their views), ScreenManager (reset AdventureContext) |
@@ -331,7 +338,7 @@ All events are C# `event System.Action<...>` on the owning class. Listeners subs
 | `OnTierChanged` | RelationshipSystem | HeroData hero, HeroData other, RelationshipTier | Dialogue (tier-up message) |
 | `OnStatusChanged` | RelationshipSystem | HeroData hero, HeroData other, RelationshipStatus | Dialogue (dating events), Inspection, relationship web |
 | `OnScreenChanged` | ScreenManager | ScreenId from, ScreenId to | HUD (hide/show), screens (refresh on open) |
-| `OnPhaseChanged` | DayCycle | int day, bool isNight | HUD day label, Town |
+| `OnPhaseChanged` | DayCycle | int day, bool isNight | DayLabel, Town (day and night buttons) |
 | `OnDialogueFinished` | DialogueScreen | HeroData | Town (refresh talk buttons) |
 
 ## Screen and feature dependencies
@@ -341,8 +348,9 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | Screen / feature | Reads | Calls | Listens to | Provides to others |
 | --- | --- | --- | --- | --- |
 | HUD / UI bar | Gold, UndoTokens, AdventuresCompleted, Day, IsNight | `ScreenManager.Show` (quick nav) | OnGoldChanged, OnUndoTokensChanged, OnAdventuresChanged, OnScreenChanged, OnPhaseChanged | Always-on status display |
-| Town Hub | AdventuresCompleted, `DayCycle.Day`, `RosterManager.Heroes` (talk candidates, not the player hero) | `ScreenManager.Show`, `DialogueScreen.Open` | OnAdventuresChanged, OnPhaseChanged, OnRosterChanged, OnDialogueFinished | Entry point to every daytime feature, talk entry point |
-| Recruitment Swipe (night) | UndoTokens, `RosterManager.IsFull`, `Config.RecruitCardsPerNight` | `HeroGenerator.Generate`, `TryAddHero`, `TryUseUndoToken`, `DayCycle.StartNextDay` | OnUndoTokensChanged | New HeroData in roster |
+| Town Hub | `DayCycle.Day`, `IsNight`, `RosterManager.Heroes` (talk candidates, not the player hero) | `ScreenManager.Show` (NavButtons), sets `SelectedHero` for Dialogue | OnPhaseChanged | Entry point to every feature; at night only the Inn |
+| Inn | UndoTokens, `DayCycle.Day`, `IsNight`, `Config.RecruitCardsPerNight` | `CardSwipeScreen.Open(new RecruitDeck(...))`, `DayCycle.StartNextDay` (Sleep) | OnUndoTokensChanged | Entry to recruiting and the roster |
+| Card swipe | A `SwipeDeck`, UndoTokens, `RosterManager.IsFull` | `HeroGenerator.Generate`, `TryAddHero`, `TryUseUndoToken`, `Inventory.Add` (item deck) | OnUndoTokensChanged | New HeroData in roster (or items) |
 | Roster | `RosterManager.Heroes`, `PlayerHero`, `GetById` | `HeroDetailPanel.Show` for the clicked tile (player hero by default) | OnRosterChanged, OnHeroUpdated | Nothing yet |
 | Hero detail panel (on Roster; reused by Recruit's swipe-up inspect) | HeroData, `RelationshipSystem.GetAffinity`, `GetTier`, `GetStatus`, `ClassVisuals` | none (read-only for now; equip via `Inventory.UseOn` is planned) | OnHeroUpdated | Reusable hero view |
 | Affinity meter (prefab) | `RelationshipSystem.GetAffinity(hero)`, `GetTier(hero)`, `GetStatus(hero)` | none | OnAffinityChanged, OnStatusChanged | Reusable meter for Inspection and Dialogue |
@@ -365,19 +373,22 @@ This is what each screen or feature reads, calls and listens to. If something yo
 | HeroGenerator | Real (random class and name, stats from BalanceConfig at the player's level) |
 | Inventory | Real (equip with class locks, potions, gifts) |
 | RelationshipSystem | Real: affinity, tiers, asking out, dating caps (with trait overrides), breakups to Ex, Widowed on death. Not yet: Charmer's affinity multiplier, Ex party debuffs, NPC-to-NPC affinity sources |
-| ScreenManager | Real: enables one panel, disables the rest; SelectedHero and AdventureContext not added yet |
+| ScreenManager | Real |
 | DayCycle | Real |
 | Roster | Real: grid of every living hero plus a read-only detail panel. No equip or dismiss yet |
-| Town | Talk buttons hidden on day 1, shown from day 2 (until it picks up to `TalkCandidatesPerDay` random NPC heroes) |
-| Recruit (`RecruitStubScreen`) | Pass and Recruit both just advance a counter; after 5 cards calls `StartNextDay` |
-| DialogueScreen | Shows one hardcoded line and a Close button |
-| Battle | Goes to Rewards after 1 second (no results recorded yet) |
+| Town | Real: up to `TalkCandidatesPerDay` random NPC heroes to talk to; day and night buttons |
+| Inn + card swipe | Real: one draw of 5 heroes per night, pick one, undo a pass with a token. Item reward deck built but not used yet |
+| Adventure Select | Real, but the party is picked automatically (player hero plus highest affinity) |
+| Battle | Real auto battle (`BattleSimulator`) with log playback |
+| Rewards | Real: gold, undo tokens, items, affinity, fallen heroes, unlocks. XP and leveling not built yet |
+| Summary | Real: run stats and New Run |
+| DialogueScreen | Placeholder: one kind or rude choice changes affinity, then the day ends |
 
 **DebugSeed** (component on the Managers object, only runs in the Editor):
 
 - On Play, after `NewGame` has created the player hero, adds one NPC per relationship tier, with that affinity toward the player hero (set through `RelationshipSystem.AddAffinity`): Warrior (0), Mage (30), Rogue (65, can be asked out), Healer (90). Editable in the Inspector
 - Adds any item assets dragged into its list (e.g. one of each ItemType)
-- Skip-to-screen toggle: added once screen-manager is merged, since `ScreenId` isn't on Core-Data yet
+- To start on a particular screen while testing, set **Start Screen** on the Managers object's Screen Manager in a feature scene
 
 ## Conventions
 
@@ -398,8 +409,9 @@ Details and reasons in `DevPractices.md`.
 
 - `Assets/Scripts/Core` (managers) and `Assets/Scripts/Core/Data` (assembly `SwipeStory.Data`: enums, data classes, ScriptableObject definitions; no references)
 - `Assets/Scripts/Screens` (one script per screen, plus `ScreenBase`)
-- `Assets/Scripts/Systems` (RelationshipSystem, battle, rewards)
-- `Assets/Scripts/UI` (shared widget scripts: NavButton, DayCycleButton, DayLabel)
+- `Assets/Scripts/Systems` (RelationshipSystem; `Swipe/` holds the swipe decks)
+- `Assets/Scripts/Battle` (BattleSimulator, BattleUnit, BattleEvent, BattleUnitRow)
+- `Assets/Scripts/UI` (shared widget scripts: NavButton, DayCycleButton, DayLabel, HeroPortrait, HeroDetailPanel, RosterSlot, SwipeCard, SwipeCardView)
 - `Assets/Scripts/Debug` (DebugSeed)
 - `Assets/Tests/EditMode` (assembly `SwipeStory.Tests.EditMode`)
 - `Assets/Prefabs/Screens`, `Assets/Prefabs/UI` (shared widgets like hero card, stat bar, affinity meter)
@@ -407,7 +419,7 @@ Details and reasons in `DevPractices.md`.
 
 **Scene and git**
 
-- One scene (`Main.unity`). Each screen is its own prefab; edit the prefab, not the scene
+- One game scene (`Main.unity`), plus feature scenes in `Assets/Scenes/Feature Scenes` for testing. Each screen is its own prefab; edit the prefab, not the scene
 - Only one person edits `Main.unity` at a time; say so in chat before touching it
 - One branch per task (`T15-swipe-input`), PR into `main`, the other person reviews
 - Pull before starting work; commit small and often
@@ -419,11 +431,12 @@ Details and reasons in `DevPractices.md`.
 - [x] ~~Can a hero die or leave the roster after a lost battle?~~ NPC death is permanent; player death ends the run
 - [x] ~~Does love score ever go down?~~ Yes (breakups need it); what lowers it is still open
 - [x] ~~Can each hero be talked to once per round, or unlimited times?~~ One talk per day (talking is the day's activity)
-- [x] ~~How many swipe cards per visit to the Recruit screen, and does the deck refresh after each adventure?~~ 5 new cards every night, free
+- [x] ~~How many swipe cards per visit to the Recruit screen?~~ 5 new cards per night at the Inn, free; the player recruits one
 - [x] ~~Is there a protagonist hero in the roster from day 1?~~ Yes, the player hero (`IsPlayer`); can't be removed or talked to
 - [x] ~~Can a lost adventure be retried?~~ Yes, and cleared adventures can be replayed; only a first win unlocks the next one
 - [x] ~~Does the run end after 3 adventures, or after a fixed number of days?~~ Won by clearing the boss (adventure 3), lost when the player hero dies. No day limit
-- [ ] Battle side: does HP carry over between encounters? Do rewards change on replays?
+- [x] ~~Does HP carry over between encounters?~~ Yes, within one adventure; survivors return to full HP afterwards
+- [ ] Do rewards change on replays?
 - [ ] Can the player leave Dialogue without ending the day?
-- [ ] Should `GameManager.NewGame` also reset `DayCycle` to day 1, daytime? (needs `DayCycle.Reset()`)
+- [x] ~~Should a new run reset the day cycle?~~ Yes: DayCycle resets to day 1, daytime on `OnNewGame`
 - [ ] Does the player hero draw traits on level-up?

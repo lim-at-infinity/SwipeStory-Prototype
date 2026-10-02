@@ -52,7 +52,7 @@ These are built for other screens too. Use them instead of making new versions.
 | `HeroUI/HeroPortrait` | Drawing any hero: cards, battle, dialogue, talk buttons. Call `Show(hero)`. |
 | `HeroUI/Panels/HeroDetailPanel` | A full read-only hero view. Recruit will use it for its swipe-up inspect. |
 | `HeroUI/RosterSlot` | One roster tile. Spawned by `RosterScreen`; not placed by hand. |
-| `HeaderBar` | A screen's title and Back button. Roster adjusts its copy so the title sits over the grid and Back over the detail panel. |
+| `HeaderBar` | A screen's title and Back button. The title sits over the grid column and Back over the detail panel column. |
 
 ## Testing
 

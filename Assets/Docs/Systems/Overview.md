@@ -1,11 +1,14 @@
 # Systems Overview
 
-How the Core-Data pieces fit together. For exact signatures see `DataCheatSheet.md`; for how we work see `DevPractices.md`.
+How the game's systems fit together. For exact signatures see `DataCheatSheet.md`; for how we work see `DevPractices.md`.
 
 | Doc | Covers |
 | --- | --- |
 | `Heroes.md` | HeroData, HeroFactory, HeroGenerator, RosterManager (living and fallen) |
 | `Roster.md` | Roster screen, hero detail panel, how heroes are drawn (ClassVisuals, HeroPortrait) |
+| `Recruitment.md` | The Inn, the card swipe screen, swipe decks |
+| `Screens.md` | Screen navigation, the day and night cycle, Town, the header bar |
+| `Battle.md` | Adventure Select, auto battle, Rewards, Summary |
 | `Items.md` | ItemData, item types and class locks, Inventory |
 | `Relationships.md` | Affinity, tiers, dating, breakups, widows |
 | `Adventures.md` | Adventures, encounters, results, unlocks, how a run ends |
@@ -40,16 +43,18 @@ Screens never poll these; they listen to their events (`OnGoldChanged`, `OnRoste
 1. Every manager's `Awake` sets its `Instance` (order `-200`).
 2. `GameManager.Start` calls `NewGame()`: resets gold, tokens and progress, clears roster, inventory and relationships, creates the player hero.
 3. `DebugSeed` (Editor only, `-150`) adds test heroes and items.
-4. `ScreenManager` (partner, `-100`) shows Town.
+4. `ScreenManager` (`-100`) shows Town.
 
 Rule: never read another manager's `Instance` in your own `Awake`; use `Start` or later.
 
 ## The loop
 
 ```
-Town > Adventure Select (party of up to 6, player hero always in)
-     > Battle (one fight per encounter) > Rewards
-     > EndDay > Recruit (night) > StartNextDay > Town ...
+Day:   Town > Adventure Select (party of up to 6, player hero always in)
+            > Battle (one fight per encounter) > Rewards        (or: Town > Talk)
+            > EndDay
+Night: Town (only the Inn open) > Inn (recruit, roster) > Sleep > next day
+Recruiting at the Inn is night only, one draw per night.
 Run won: boss (3rd adventure) cleared.  Run lost: player hero dies.
 ```
 
